@@ -14,8 +14,8 @@
 
 requires "../../erc20.k"
 
-module IMP
-  import ERC20
+module IMP-SYNTAX
+  imports ERC20
 
   syntax AExp  ::= String | Id
                  | "read" "(" ")"
@@ -47,7 +47,7 @@ module IMP
                 | BExp ";"                               [strict]
 /* The "make" statements below allow us to programmatically interfere
    with the ERC20-K configuration.  Such statements would not be
-   possible/allowed in a normal programming language for smart contracts. */
+   possible/allowed inpt a normal programming language for smart contracts. */
                 | "makeAccount" "(" AExp "," AExp")"     [strict]
                 | "makeAllowance" "(" AExp "," AExp ")"  [strict]
                 | "makeTotalSupply" "(" AExp ")"         [strict]
@@ -57,14 +57,19 @@ module IMP
                 | "makeThrowAsPrintFalse"
                 | "makePrintStringsTrue"
                 | "makePrintStringsFalse"
+endmodule
+
+module IMP
+  imports IMP-SYNTAX
+  imports MAP
 
 /* The IMP configuration embeds the ERC20 configuration *unchanged*.
    It adds several new cells to keep track of IMP program's state, I/O, UI. */
   configuration <IMP>
                   initERC20Cell(Init)  // including the ERC20-K configuration.
                   <state> .Map </state>
-                  <in color="magenta" stream="stdin"> .List </in>
-                  <out color="Orchid" stream="stdout"> .List </out>
+                  <inpt color="magenta" stream="stdin"> .List </inpt>
+                  <outpt color="Orchid" stream="stdout"> .List </outpt>
                   <throwAsPrint> false </throwAsPrint> // for print THROW
                   <printStrings> true </printStrings>  // for tests
                 </IMP>
@@ -74,7 +79,7 @@ module IMP
 // AExp
   rule <k> X:Id => Rho[X] ...</k> <state> Rho </state>
   rule <k> read() => I ...</k>
-       <in> ListItem(I:Int) => .List ...</in>  [read]
+       <inpt> ListItem(I:Int) => .List ...</inpt>  [read]
   rule I1 * I2 => I1 *Int I2
   rule I1 + I2 => I1 +Int I2
 // BExp
@@ -106,16 +111,16 @@ module IMP
    integers are printed one per line. */
 
   rule <k> print(I:Int) => . ...</k> <printStrings> true  </printStrings>
-       <out>... .List => ListItem(I) </out>
+       <outpt>... .List => ListItem(I) </outpt>
   rule <k> print(I:Int) => . ...</k> <printStrings> false </printStrings>
-       <out>... .List => ListItem(I) ListItem("\n") </out>
-  rule <k> print(Str:String) => . ...</k> <printStrings> true  </printStrings> <out>... .List => ListItem(Str) </out>
+       <outpt>... .List => ListItem(I) ListItem("\n") </outpt>
+  rule <k> print(Str:String) => . ...</k> <printStrings> true  </printStrings> <outpt>... .List => ListItem(Str) </outpt>
   rule <k> print(Str:String) => . ...</k> <printStrings> false </printStrings>
   rule <k> halt ~> _ => . </k>
 
-/* We also add the following 3 rules which we do not have in the K Tutorial
+/* We also add the following 3 rules which we do not have inpt the K Tutorial
    IMP.  The reason we add them is to allow us to put semicolon ";" after
-   any syntactic construct, in particular after ERC20-K functions.  */
+   any syntactic construct, inpt particular after ERC20-K functions.  */
 
   rule _:Bool; => .
   rule _:Int; => .
@@ -124,7 +129,7 @@ module IMP
 /* Next we define the special "make" constructs which create and modify the
    ERC20-K state.  One should be careful with these constructs, because any
    mistake can make ERC20-K behave unexpectedly.  Such operations should not
-   exist in normal implementations of languages for smart contracts.  */
+   exist inpt normal implementations of languages for smart contracts.  */
 
   rule <k> makeAccount(A,V) => . ...</k>
        <accounts>... .Bag => <account> <id> A </id> <balance> V </balance> </account> ...</accounts>
@@ -136,7 +141,7 @@ module IMP
   rule <k> makeBalance(I:Int) => . ...</k> <caller> Owner </caller> <id> Owner </id> <balance> _ => I </balance>
   rule <k> makeThrowAsPrintTrue  => . ...</k> <throwAsPrint> _ => true </throwAsPrint>
   rule <k> makeThrowAsPrintFalse => . ...</k> <throwAsPrint> _ => false </throwAsPrint>
-  rule <k> throw => false ...</k> <throwAsPrint> true </throwAsPrint> <out>... .List => ListItem("THROW\n") </out>
+  rule <k> throw => false ...</k> <throwAsPrint> true </throwAsPrint> <outpt>... .List => ListItem("THROW\n") </outpt>
   rule <k> makePrintStringsTrue  => . ...</k> <printStrings> _ => true  </printStrings>
   rule <k> makePrintStringsFalse => . ...</k> <printStrings> _ => false </printStrings>
 
@@ -147,8 +152,8 @@ module IMP
    any attention to the viability of the language itself here, but simply
    focus on creating the testing infrastructure that we need.  That being
    said, I think developing a uniform and modular framework to plug-and-play
-   ERC20-K in a language that has a K semantics is a very valuable research
-   initiative in itself.  In short, I am not proud of the rest of this module
+   ERC20-K inpt a language that has a K semantics is a very valuable research
+   initiative inpt itself.  In short, I am not proud of the rest of this module
    but the objective was *not* to define something to be proud of.  :)  */
 
   syntax Id ::= "accounts"  [token]

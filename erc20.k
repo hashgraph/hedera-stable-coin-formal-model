@@ -6,7 +6,9 @@
 
    See erc20.md for comments.  */
 
-module ERC20
+module ERC20-SYNTAX
+  imports DOMAINS-SYNTAX
+  
   syntax Value   ::= Int  // this can be changed
   syntax Address ::= Int  // this can be changed
   syntax AExp ::= Value | Address
@@ -22,21 +24,26 @@ module ERC20
                  | "Approval" "(" Address "," Address "," Value ")"
   syntax EventLog ::= "Events:"
                     | EventLog Event
+endmodule
+
+module ERC20
+  imports ERC20-SYNTAX
+  imports DOMAINS
 
   configuration <ERC20>
                   <caller> 0 </caller>
                   <k> $PGM:K </k>
                   <accounts>
-                    <account multiplicity="*">
+                    <account multiplicity="*" type="Set">
                       <id> 0 </id>
                       <balance> 0 </balance>
                     </account>
                   </accounts>
                   <allowances>
-                    <allowance multiplicity="*">
+                    <allowance multiplicity="*" type="Set">
                       <owner> 0 </owner>
                       <spenders>
-                        <allow multiplicity="*">
+                        <allow multiplicity="*" type="Set">
                           <spender> 0 </spender>
                           <amount> 0 </amount>
                         </allow>
