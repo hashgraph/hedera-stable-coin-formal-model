@@ -14,8 +14,9 @@
 
 requires "../../erc20.k"
 
-module IMP-SYNTAX
+module IMP
   imports ERC20
+  imports MAP
 
   syntax AExp  ::= String | Id
                  | "read" "(" ")"
@@ -57,11 +58,6 @@ module IMP-SYNTAX
                 | "makeThrowAsPrintFalse"
                 | "makePrintStringsTrue"
                 | "makePrintStringsFalse"
-endmodule
-
-module IMP
-  imports IMP-SYNTAX
-  imports MAP
 
 /* The IMP configuration embeds the ERC20 configuration *unchanged*.
    It adds several new cells to keep track of IMP program's state, I/O, UI. */
@@ -118,7 +114,7 @@ module IMP
   rule <k> print(Str:String) => . ...</k> <printStrings> false </printStrings>
   rule <k> halt ~> _ => . </k>
 
-/* We also add the following 3 rules which we do not have inpt the K Tutorial
+/* We also add the following 3 rules which we do not have in the K Tutorial
    IMP.  The reason we add them is to allow us to put semicolon ";" after
    any syntactic construct, inpt particular after ERC20-K functions.  */
 
@@ -129,7 +125,7 @@ module IMP
 /* Next we define the special "make" constructs which create and modify the
    ERC20-K state.  One should be careful with these constructs, because any
    mistake can make ERC20-K behave unexpectedly.  Such operations should not
-   exist inpt normal implementations of languages for smart contracts.  */
+   exist in normal implementations of languages for smart contracts.  */
 
   rule <k> makeAccount(A,V) => . ...</k>
        <accounts>... .Bag => <account> <id> A </id> <balance> V </balance> </account> ...</accounts>
