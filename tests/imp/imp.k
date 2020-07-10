@@ -315,12 +315,4 @@ makeThrowAsPrintTrue;
     print(allowance(a,caller));
     print("\n");
 
-  syntax Stmt ::= "test.mint" "(" AExp ")" [macro]
-    rule test.mint(Value) =>
-      mint(Value)
-
-  syntax Stmt ::= "test.burn" "(" AExp ")" [macro]
-    rule test.burn(Value) =>
-      burn(Value)
-
 endmodule
