@@ -56,6 +56,8 @@ module ERC20
                   <supply> 0 </supply>
                 </ERC20>
 
+  syntax KResult ::= Int | Bool | String
+
   syntax Int ::= "MAXVALUE"  [function]
   rule MAXVALUE => 2 ^Int 256 -Int 1
 
