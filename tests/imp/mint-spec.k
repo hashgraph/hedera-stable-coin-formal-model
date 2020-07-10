@@ -23,17 +23,15 @@ ensures ?FinalSupply ==Int ?Sum
 
 rule
     <k>
-        Pgm:K 
+        mint(Value)
       => 
         .
-    </k>
+    ...</k>
     <supply>
-      0 => ?FinalSupply:Int
+      N => N +Int Value
     </supply>
     <mintsum>
-      0 => ?Sum:Int
+      M => M +Int Value
     </mintsum>
-ensures ?FinalSupply ==Int ?Sum
-
 
 endmodule
