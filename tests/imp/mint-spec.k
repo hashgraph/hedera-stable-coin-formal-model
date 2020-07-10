@@ -6,30 +6,20 @@
 
 module MINT-SPEC
   imports IMP
-/*
-rule
-    <k>
-      mint(Value)
-    =>
-      .K
-    ...</k>
-    <mintsum> N:Int => (N +Int Value) </mintsum>
-*/
-
+ 
 rule
     <k>
         test.mint(45); 
-        // test.burn(30); // If you add this line back in, it will fail as expected
       => 
         .
     </k>
     <supply>
-      0 => ?Mints:Int
+      0 => ?FinalSupply:Int
     </supply>
     <mintsum>
       0 => ?Sum:Int
     </mintsum>
-ensures ?Mints ==Int ?Sum
+ensures ?FinalSupply ==Int ?Sum
 
 rule
     <k>
@@ -43,7 +33,7 @@ rule
     <mintsum>
       0 => ?Sum:Int
     </mintsum>
-ensures ?Sum <=Int ?FinalSupply
+ensures ?FinalSupply ==Int ?Sum
 
 
 endmodule

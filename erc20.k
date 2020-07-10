@@ -75,10 +75,10 @@ module ERC20
     requires Value >Int 0
 
   rule <k> burn(Value) => . ...</k>
-       <supply> Supply => Supply -Int Value </supply>
+       //<supply> Supply => Supply -Int Value </supply>
        <burnsum> N => N +Int Value </burnsum>
     requires Value >Int 0
-      andBool Supply >=Int Value
+      //andBool Supply >=Int Value
 
   rule <k> allowance(Owner, Spender) => Allowance ...</k>
        <owner> Owner </owner>
