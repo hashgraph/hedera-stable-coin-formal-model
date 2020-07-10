@@ -10,13 +10,17 @@ module MINTABLE-SPEC
 
 rule
     <k>
-        mint(Value)
+        mint(Value, {caller: Owner})
       => 
         .
     ...</k>
+    <tokenOwner> Owner </tokenOwner>
     <totalSupply>
       N => N +Int Value
     </totalSupply>
-    
-
+requires 
+  Owner =/=Int 0
+    andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+    andBool Value >=Int 0
+    andBool N +Int Value <=Int MAXVALUE
 endmodule
