@@ -19,6 +19,8 @@ module ERC20-SYNTAX
                 | "approve" "(" AExp "," AExp ")"                [strict]
                 | "transfer" "(" AExp "," AExp ")"               [strict]
                 | "transferFrom" "(" AExp "," AExp "," AExp ")"  [strict]
+                | "mint" "(" AExp ")"                            [strict]
+                | "burn" "(" AExp ")"                            [strict]
                 | "throw"
   syntax Event ::= "Transfer" "(" Address "," Address "," Value ")"
                  | "Approval" "(" Address "," Address "," Value ")"
@@ -52,6 +54,9 @@ module ERC20
                   </allowances>
                   <log> Events: </log>
                   <supply> 0 </supply>
+                  // used for proving invariants
+                  <mintsum> 0 </mintsum>
+                  <burnsum> 0 </burnsum>
                 </ERC20>
 
   syntax Int ::= "MAXVALUE"  [function]
@@ -63,6 +68,17 @@ module ERC20
   rule <k> balanceOf(Id) => Value ...</k>
        <id> Id </id>
        <balance> Value </balance>
+
+  rule <k> mint(Value) => . ...</k>
+       <supply> Supply => Supply +Int Value </supply>
+       <mintsum> N => N +Int Value </mintsum>
+    requires Value >Int 0
+
+  rule <k> burn(Value) => . ...</k>
+       <supply> Supply => Supply -Int Value </supply>
+       <burnsum> N => N +Int Value </burnsum>
+    requires Value >Int 0
+      andBool Supply >=Int Value
 
   rule <k> allowance(Owner, Spender) => Allowance ...</k>
        <owner> Owner </owner>
