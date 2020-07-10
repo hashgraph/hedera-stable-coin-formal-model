@@ -5,17 +5,19 @@
 
 requires "erc20.k"
 
-module MINT-SPEC
+module BURNABLE-SPEC
   imports ERC20
 
 rule
     <k>
-        mint(Value)
+        burn(Value, {caller: Owner})
       => 
         .
     ...</k>
     <supply>
-      N => N +Int Value
+      N => N -Int Value
     </supply>
+    <tokenOwner> Owner </tokenOwner>
+
 
 endmodule

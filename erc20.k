@@ -13,14 +13,14 @@ module ERC20-SYNTAX
   syntax Address ::= Int  // this can be changed
   syntax AExp ::= Value | Address
                 | "totalSupply" "(" ")"
-                | "balanceOf" "(" AExp ")"                       [strict]
-                | "allowance" "(" AExp "," AExp ")"              [strict]
+                | "balanceOf" "(" AExp ")"                             [strict]
+                | "allowance" "(" AExp "," AExp ")"                    [strict]
   syntax BExp ::= Bool
-                | "approve" "(" AExp "," AExp ")"                [strict]
-                | "transfer" "(" AExp "," AExp ")"               [strict]
-                | "transferFrom" "(" AExp "," AExp "," AExp ")"  [strict]
-                | "mint" "(" AExp ")"                            [strict]
-                | "burn" "(" AExp ")"                            [strict]
+                | "approve" "(" AExp "," AExp ")"                      [strict]
+                | "transfer" "(" AExp "," AExp ")"                     [strict]
+                | "transferFrom" "(" AExp "," AExp "," AExp ")"        [strict]
+                | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
+                | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
                 | "throw"
   syntax Event ::= "Transfer" "(" Address "," Address "," Value ")"
                  | "Approval" "(" Address "," Address "," Value ")"
@@ -33,8 +33,8 @@ module ERC20
   imports DOMAINS
 
   configuration <ERC20>
-                  <caller> 0 </caller>
                   <k> $PGM:K </k>
+                  <caller> 0 </caller>
                   <accounts>
                     <account multiplicity="*" type="Set">
                       <id> 0 </id>
@@ -53,7 +53,10 @@ module ERC20
                     </allowance>
                   </allowances>
                   <log> Events: </log>
-                  <supply> 0 </supply>
+                  <totalSupply> 0 </totalSupply>
+                  <tokenOwner> 0 </tokenOwner>
+                  <supplyManager> 0 </supplyManager>
+                  <assetProtectionManager> 0 </assetProtectionManager>
                 </ERC20>
 
   syntax KResult ::= Int | Bool | String
@@ -62,20 +65,40 @@ module ERC20
   rule MAXVALUE => 2 ^Int 256 -Int 1
 
   rule <k> totalSupply() => Total ...</k>
-       <supply> Total </supply>
+       <totalSupply> Total </totalSupply>
        
   rule <k> balanceOf(Id) => Value ...</k>
        <id> Id </id>
        <balance> Value </balance>
 
-  rule <k> mint(Value) => . ...</k>
-       <supply> Supply => Supply +Int Value </supply>
-    requires Value >Int 0
+  // note that according to the spec, the funds go to SupplyManager even if the caller is Owner
+  rule <k> mint(Value, {caller: Caller}) => . ...</k>
+       <totalSupply> Supply => Supply +Int Value </totalSupply>
+       <account>
+         <id> SupplyManager </id> 
+         <balance> Balance => Balance +Int Value </balance>
+       </account>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+    requires 
+      Owner =/=Int 0
+        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+        andBool Value >=Int 0
+        andBool Supply +Int Value <=Int MAXVALUE
+ 
 
-  rule <k> burn(Value) => . ...</k>
-       <supply> Supply => Supply -Int Value </supply>
-    requires Value >Int 0
-      andBool Supply >=Int Value
+  rule <k> burn(Value, {caller: Caller}) => . ...</k>
+       <totalSupply> Supply => Supply -Int Value </totalSupply>
+        <account>
+         <id> SupplyManager </id> 
+         <balance> Balance => Balance -Int Value </balance>
+       </account>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+    requires 
+      Balance >=Int Value
+      andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+      andBool Value >=Int 0
 
   rule <k> allowance(Owner, Spender) => Allowance ...</k>
        <owner> Owner </owner>
