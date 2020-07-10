@@ -3,23 +3,10 @@
 // kompile --backend java imp.k
 // kprove mint-spec.k
 
+requires "../../erc20.k"
 
 module MINT-SPEC
-  imports IMP
- 
-rule
-    <k>
-        test.mint(45); 
-      => 
-        .
-    </k>
-    <supply>
-      0 => ?FinalSupply:Int
-    </supply>
-    <mintsum>
-      0 => ?Sum:Int
-    </mintsum>
-ensures ?FinalSupply ==Int ?Sum
+  imports ERC20
 
 rule
     <k>
@@ -30,8 +17,5 @@ rule
     <supply>
       N => N +Int Value
     </supply>
-    <mintsum>
-      M => M +Int Value
-    </mintsum>
 
 endmodule
