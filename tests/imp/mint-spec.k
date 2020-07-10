@@ -1,5 +1,9 @@
 // The final total supply is the sum of all mints
 
+// kompile --backend java imp.k
+// kprove mint-spec.k
+
+
 module MINT-SPEC
   imports IMP
 /*
@@ -14,7 +18,8 @@ rule
 
 rule
     <k>
-        mint(2); burn(1); 
+        test.mint(45); 
+        // test.burn(30); // If you add this line back in, it will fail as expected
       => 
         .
     </k>
@@ -24,8 +29,21 @@ rule
     <mintsum>
       0 => ?Sum:Int
     </mintsum>
-ensures ?Mints =/=Int ?Sum
+ensures ?Mints ==Int ?Sum
 
+rule
+    <k>
+        Pgm:K 
+      => 
+        .
+    </k>
+    <supply>
+      0 => ?FinalSupply:Int
+    </supply>
+    <mintsum>
+      0 => ?Sum:Int
+    </mintsum>
+ensures ?Sum <=Int ?FinalSupply
 
 
 endmodule
