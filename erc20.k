@@ -21,11 +21,8 @@ module ERC20-SYNTAX
                 | "transferFrom" "(" AExp "," AExp "," AExp ")"        [strict]
                 | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
                 | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
+                | "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
                 | "throw"
-  syntax Event ::= "Transfer" "(" Address "," Address "," Value ")"
-                 | "Approval" "(" Address "," Address "," Value ")"
-  syntax EventLog ::= "Events:"
-                    | EventLog Event
 endmodule
 
 module ERC20
@@ -52,7 +49,9 @@ module ERC20
                       </spenders>
                     </allowance>
                   </allowances>
-                  <log> Events: </log>
+                  <tokenName> 0 </tokenName>
+                  <tokenSymbol> 0 </tokenSymbol>
+                  <tokenDecimal> 0 </tokenDecimal>
                   <totalSupply> 0 </totalSupply>
                   <tokenOwner> 0 </tokenOwner>
                   <supplyManager> 0 </supplyManager>
@@ -64,28 +63,24 @@ module ERC20
   syntax Int ::= "MAXVALUE"  [function]
   rule MAXVALUE => 2 ^Int 256 -Int 1
 
-  rule <k> totalSupply() => Total ...</k>
-       <totalSupply> Total </totalSupply>
-       
-  rule <k> balanceOf(Id) => Value ...</k>
-       <id> Id </id>
-       <balance> Value </balance>
+// mintable
 
   // note that according to the spec, the funds go to SupplyManager even if the caller is Owner
-  rule <k> mint(Value, {caller: Caller}) => . ...</k>
-       <totalSupply> Supply => Supply +Int Value </totalSupply>
+  rule <k> mint(Value, { caller : Caller } ) => . ...</k>
        <account>
          <id> SupplyManager </id> 
          <balance> Balance => Balance +Int Value </balance>
        </account>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
+       <totalSupply> Supply => Supply +Int Value </totalSupply>
     requires 
       Owner =/=Int 0
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
  
+// burnable
 
   rule <k> burn(Value, {caller: Caller}) => . ...</k>
        <totalSupply> Supply => Supply -Int Value </totalSupply>
@@ -100,128 +95,40 @@ module ERC20
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
 
-  rule <k> allowance(Owner, Spender) => Allowance ...</k>
-       <owner> Owner </owner>
-       <spender> Spender </spender>
-       <amount> Allowance </amount>
+// base
 
-  rule <k> approve(Spender, Allowance) => true ...</k>
-       <caller> Owner </caller>
-       <owner> Owner </owner>
-       <spender> Spender </spender>
-       <amount> _ => Allowance </amount>
-       <log> Log => Log Approval(Owner, Spender, Allowance) </log>
-    requires Allowance >=Int 0
+  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => . ...</k>
+      <tokenName> TokenName => TokenNameArg </tokenName>
+      <tokenSymbol> TokenSymbol => TokenSymbolArg </tokenSymbol>
+      <tokenDecimal> TokenDecimal => TokenDecimalArg </tokenDecimal>
+      <totalSupply> TotalSupply => TotalSupplyArg </totalSupply>
+      <tokenOwner> TokenOwner => Caller </tokenOwner>
+      <supplyManager> SupplyManager => SupplyManagerArg </supplyManager>
+      <assetProtectionManager> AssetProtectionManager => AssetProtectionManagerArg </assetProtectionManager>
+  requires TokenOwner ==Int 0
+      andBool TokenDecimalArg >=Int 0
+      andBool TotalSupplyArg >=Int 0
+      andBool Caller =/=Int 0
+      andBool SupplyManagerArg =/=Int 0
+      andBool AssetProtectionManagerArg =/=Int 0
 
-  rule <k> approve(_, Allowance) => throw ...</k>
-    requires Allowance <Int 0
+  // constructor throws if it's called more than once or arguments are incorrect
+  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => throw ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+  requires notBool (TokenOwner ==Int 0
+      andBool TokenDecimalArg >=Int 0
+      andBool TotalSupplyArg >=Int 0
+      andBool Caller =/=Int 0
+      andBool SupplyManagerArg =/=Int 0
+      andBool AssetProtectionManagerArg =/=Int 0)
+ 
+// getters
 
-  rule <k> transfer(To, Value) => true ...</k>
-       <caller> From </caller>
-       <account>
-         <id> From </id>
-         <balance> BalanceFrom => BalanceFrom -Int Value </balance>
-       </account>
-       <account>
-         <id> To </id>
-         <balance> BalanceTo => BalanceTo +Int Value </balance>
-       </account>
-       <log> Log => Log Transfer(From, To, Value) </log>
-    requires To =/=Int From    // sanity check
-     andBool Value >=Int 0
-     andBool Value <=Int BalanceFrom
-     andBool BalanceTo +Int Value <=Int MAXVALUE
-
-  rule <k> transfer(From, Value) => true ...</k>
-       <caller> From </caller>
-       <id> From </id>
-       <balance> BalanceFrom </balance>
-       <log> Log => Log Transfer(From, From, Value) </log>
-    requires Value >=Int 0
-     andBool Value <=Int BalanceFrom
-
-  rule <k> transfer(To, Value) => throw ...</k>
-       <caller> From </caller>
-       <account>
-         <id> From </id>
-         <balance> BalanceFrom </balance>
-       </account>
-       <account>
-         <id> To </id>
-         <balance> BalanceTo </balance>
-       </account>
-    requires To =/=Int From   // sanity check
-     andBool (Value <Int 0
-      orBool Value >Int BalanceFrom
-      orBool BalanceTo +Int Value >Int MAXVALUE)
-
-  rule <k> transfer(From, Value) => throw ...</k>
-       <caller> From </caller>
-       <id> From </id>
-       <balance> BalanceFrom </balance>
-    requires Value <Int 0
-      orBool Value >Int BalanceFrom
-
-  rule <k> transferFrom(From, To, Value) => true ...</k>
-       <caller> Caller </caller>
-       <owner> From </owner>
-       <spender> Caller </spender>
-       <amount> Allowance => Allowance -Int Value </amount>
-       <account>
-         <id> From </id>
-         <balance> BalanceFrom => BalanceFrom -Int Value </balance>
-       </account>
-       <account>
-         <id> To </id>
-         <balance> BalanceTo => BalanceTo +Int Value </balance>
-       </account>
-       <log> Log => Log Transfer(From, To, Value) </log>
-    requires To =/=Int From    // sanity check
-     andBool Value >=Int 0
-     andBool Value <=Int BalanceFrom
-     andBool Value <=Int Allowance   // `transfer` does not check allowance
-     andBool BalanceTo +Int Value <=Int MAXVALUE
-
-  rule <k> transferFrom(From, From, Value) => true ...</k>
-       <caller> Caller </caller>
-       <owner> From </owner>
-       <spender> Caller </spender>
-       <amount> Allowance => Allowance -Int Value </amount>
-       <id> From </id>
-       <balance> BalanceFrom </balance>
-       <log> Log => Log Transfer(From, From, Value) </log>
-    requires Value >=Int 0
-     andBool Value <=Int BalanceFrom
-     andBool Value <=Int Allowance   // `transfer` does not check allowance
-
-  rule <k> transferFrom(From, To, Value) => throw ...</k>
-       <caller> Caller </caller>
-       <owner> From </owner>
-       <spender> Caller </spender>
-       <amount> Allowance </amount>
-       <account>
-         <id> From </id>
-         <balance> BalanceFrom </balance>
-       </account>
-       <account>
-         <id> To </id>
-         <balance> BalanceTo </balance>
-       </account>
-    requires To =/=Int From    // sanity check
-     andBool (Value <Int 0
-      orBool Value >Int BalanceFrom
-      orBool Value >Int Allowance
-      orBool BalanceTo +Int Value >Int MAXVALUE)
-
-  rule <k> transferFrom(From, From, Value) => throw ...</k>
-       <caller> Caller </caller>
-       <owner> From </owner>
-       <spender> Caller </spender>
-       <amount> Allowance </amount>
-       <id> From </id>
-       <balance> BalanceFrom </balance>
-    requires Value <Int 0
-      orBool Value >Int BalanceFrom
-      orBool Value >Int Allowance   // `transfer` does not check allowance
+  rule <k> totalSupply() => Total ...</k>
+      <totalSupply> Total </totalSupply>
+      
+rule <k> balanceOf(Id) => Value ...</k>
+      <id> Id </id>
+      <balance> Value </balance>
 
 endmodule

@@ -48,7 +48,7 @@ module IMP
                 | BExp ";"                               [strict]
 /* The "make" statements below allow us to programmatically interfere
    with the ERC20-K configuration.  Such statements would not be
-   possible/allowed inpt a normal programming language for smart contracts. */
+   possible/allowed in a normal programming language for smart contracts. */
                 | "makeAccount" "(" AExp "," AExp")"     [strict]
                 | "makeAllowance" "(" AExp "," AExp ")"  [strict]
                 | "makeTotalSupply" "(" AExp ")"         [strict]
@@ -116,7 +116,7 @@ module IMP
 
 /* We also add the following 3 rules which we do not have in the K Tutorial
    IMP.  The reason we add them is to allow us to put semicolon ";" after
-   any syntactic construct, inpt particular after ERC20-K functions.  */
+   any syntactic construct, in particular after ERC20-K functions.  */
 
   rule _:Bool; => .
   rule _:Int; => .
@@ -148,8 +148,8 @@ module IMP
    any attention to the viability of the language itself here, but simply
    focus on creating the testing infrastructure that we need.  That being
    said, I think developing a uniform and modular framework to plug-and-play
-   ERC20-K inpt a language that has a K semantics is a very valuable research
-   initiative inpt itself.  In short, I am not proud of the rest of this module
+   ERC20-K in a language that has a K semantics is a very valuable research
+   initiative in itself.  In short, I am not proud of the rest of this module
    but the objective was *not* to define something to be proud of.  :)  */
 
   syntax Id ::= "accounts"  [token]
