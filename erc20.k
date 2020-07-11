@@ -13,13 +13,15 @@ module ERC20-SYNTAX
   syntax Address ::= Int  // this can be changed
   syntax AExp ::= Value | Address
                 | "totalSupply" "(" ")"
-                | "balanceOf" "(" AExp ")"                       [strict]
-                | "allowance" "(" AExp "," AExp ")"              [strict]
+                | "balanceOf" "(" AExp ")"                             [strict]
+                | "allowance" "(" AExp "," AExp ")"                    [strict]
   syntax BExp ::= Bool
+                | "approve" "(" AExp "," AExp ")"                      [strict]
+                | "transfer" "(" AExp "," AExp ")"                     [strict]
+                | "transferFrom" "(" AExp "," AExp "," AExp ")"        [strict]
+                | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
+                | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
                 | "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
-                | "approve" "(" AExp "," AExp ")"                [strict]
-                | "transfer" "(" AExp "," AExp ")"               [strict]
-                | "transferFrom" "(" AExp "," AExp "," AExp ")"  [strict]
                 | "throw"
 endmodule
 
@@ -59,6 +61,38 @@ module ERC20
 
   syntax Int ::= "MAXVALUE"  [function]
   rule MAXVALUE => 2 ^Int 256 -Int 1
+
+// mintable
+
+  // note that according to the spec, the funds go to SupplyManager even if the caller is Owner
+  rule <k> mint(Value, { caller : Caller } ) => . ...</k>
+       <account>
+         <id> SupplyManager </id> 
+         <balance> Balance => Balance +Int Value </balance>
+       </account>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+       <totalSupply> Supply => Supply +Int Value </totalSupply>
+    requires 
+      Owner =/=Int 0
+        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+        andBool Value >=Int 0
+        andBool Supply +Int Value <=Int MAXVALUE
+ 
+// burnable
+
+  rule <k> burn(Value, {caller: Caller}) => . ...</k>
+       <totalSupply> Supply => Supply -Int Value </totalSupply>
+        <account>
+         <id> SupplyManager </id> 
+         <balance> Balance => Balance -Int Value </balance>
+       </account>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+    requires 
+      Balance >=Int Value
+      andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+      andBool Value >=Int 0
 
 // base
 
