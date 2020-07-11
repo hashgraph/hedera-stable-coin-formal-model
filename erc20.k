@@ -31,7 +31,6 @@ module ERC20
 
   configuration <ERC20>
                   <k> $PGM:K </k>
-                  <caller> 0 </caller>
                   <accounts>
                     <account multiplicity="*" type="Set">
                       <id> 0 </id>
