@@ -16,12 +16,12 @@ module ERC20-SYNTAX
                 | "balanceOf" "(" AExp ")"                             [strict]
                 | "allowance" "(" AExp "," AExp ")"                    [strict]
   syntax BExp ::= Bool
-                | "approve" "(" AExp "," AExp ")"                      [strict]
-                | "transfer" "(" AExp "," AExp ")"                     [strict]
-                | "transferFrom" "(" AExp "," AExp "," AExp ")"        [strict]
+                | "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
+                | "approve" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                      [strict]
+                | "transfer" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
+                | "transferFrom" "(" AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"        [strict]
                 | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
                 | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
-                | "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
                 | "throw"
 endmodule
 
@@ -29,7 +29,7 @@ module ERC20
   imports ERC20-SYNTAX
   imports DOMAINS
 
-  configuration <ERC20>
+  configuration <ERC20 unused="true">
                   <k> $PGM:K </k>
                   <accounts>
                     <account multiplicity="*" type="Set">
@@ -38,10 +38,10 @@ module ERC20
                     </account>
                   </accounts>
                   <allowances>
-                    <allowance multiplicity="*" type="Set">
+                    <allowance multiplicity="*" type="Set" unused="true">
                       <owner> 0 </owner>
                       <spenders>
-                        <allow multiplicity="*" type="Set">
+                        <allow multiplicity="*" type="Set" unused="true">
                           <spender> 0 </spender>
                           <amount> 0 </amount>
                         </allow>
@@ -61,6 +61,154 @@ module ERC20
 
   syntax Int ::= "MAXVALUE"  [function]
   rule MAXVALUE => 2 ^Int 256 -Int 1
+
+// base
+
+  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => . ...</k>
+      <tokenName> _ => TokenNameArg </tokenName>
+      <tokenSymbol> _ => TokenSymbolArg </tokenSymbol>
+      <tokenDecimal> _ => TokenDecimalArg </tokenDecimal>
+      <totalSupply> _ => TotalSupplyArg </totalSupply>
+      <tokenOwner> TokenOwner => Caller </tokenOwner>
+      <supplyManager> _ => SupplyManagerArg </supplyManager>
+      <assetProtectionManager> _ => AssetProtectionManagerArg </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      andBool TokenDecimalArg >=Int 0
+      andBool TotalSupplyArg >=Int 0
+      andBool Caller =/=Int 0
+      andBool SupplyManagerArg =/=Int 0
+      andBool AssetProtectionManagerArg =/=Int 0
+
+  // constructor throws if it's called more than once or arguments are incorrect
+  rule <k> constructor(_, _, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => throw ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+    requires notBool (TokenOwner ==Int 0
+      andBool TokenDecimalArg >=Int 0
+      andBool TotalSupplyArg >=Int 0
+      andBool Caller =/=Int 0
+      andBool SupplyManagerArg =/=Int 0
+      andBool AssetProtectionManagerArg =/=Int 0)
+ 
+// getters
+
+  rule <k> totalSupply() => Total ...</k>
+      <totalSupply> Total </totalSupply>
+      
+  rule <k> balanceOf(Id) => Value ...</k>
+      <id> Id </id>
+      <balance> Value </balance>
+
+  rule <k> allowance(Owner, Spender) => Allowance ...</k>
+       <owner> Owner </owner>
+       <spender> Spender </spender>
+       <amount> Allowance </amount>
+
+// erc20
+
+  rule <k> approve(Spender, Allowance, { caller : Caller } ) => true ...</k>
+       <owner> Caller </owner>
+       <spender> Spender </spender>
+       <amount> _ => Allowance </amount>
+    requires Allowance >=Int 0
+
+  rule <k> approve(_, Allowance, { caller : _ }) => throw ...</k>
+    requires Allowance <Int 0
+
+  rule <k> transfer(To, Value, { caller : Caller } ) => true ...</k>
+       <account>
+         <id> Caller </id>
+         <balance> BalanceFrom => BalanceFrom -Int Value </balance>
+       </account>
+       <account>
+         <id> To </id>
+         <balance> BalanceTo => BalanceTo +Int Value </balance>
+       </account>
+    requires To =/=Int Caller    // sanity check
+     andBool Value >=Int 0
+     andBool Value <=Int BalanceFrom
+     andBool BalanceTo +Int Value <=Int MAXVALUE
+
+  rule <k> transfer(_, Value, { caller : Caller } ) => true ...</k>
+       <id> Caller </id>
+       <balance> BalanceFrom </balance>
+    requires Value >=Int 0
+     andBool Value <=Int BalanceFrom
+
+  rule <k> transfer(To, Value, { caller : Caller } ) => throw ...</k>
+       <account>
+         <id> Caller </id>
+         <balance> BalanceFrom </balance>
+       </account>
+       <account>
+         <id> To </id>
+         <balance> BalanceTo </balance>
+       </account>
+    requires To =/=Int Caller   // sanity check
+     andBool (Value <Int 0
+      orBool Value >Int BalanceFrom
+      orBool BalanceTo +Int Value >Int MAXVALUE)
+
+  rule <k> transfer(_, Value, { caller : Caller } ) => throw ...</k>
+       <id> Caller </id>
+       <balance> BalanceFrom </balance>
+    requires Value <Int 0
+      orBool Value >Int BalanceFrom
+
+  rule <k> transferFrom(From, To, Value, { caller : Caller } ) => true ...</k>
+       <owner> From </owner>
+       <spender> Caller </spender>
+       <amount> Allowance => Allowance -Int Value </amount>
+       <account>
+         <id> From </id>
+         <balance> BalanceFrom => BalanceFrom -Int Value </balance>
+       </account>
+       <account>
+         <id> To </id>
+         <balance> BalanceTo => BalanceTo +Int Value </balance>
+       </account>
+    requires To =/=Int From    // sanity check
+     andBool Value >=Int 0
+     andBool Value <=Int BalanceFrom
+     andBool Value <=Int Allowance   // `transfer` does not check allowance
+     andBool BalanceTo +Int Value <=Int MAXVALUE
+
+  rule <k> transferFrom(From, From, Value, { caller : Caller } ) => true ...</k>
+       <owner> From </owner>
+       <spender> Caller </spender>
+       <amount> Allowance => Allowance -Int Value </amount>
+       <id> From </id>
+       <balance> BalanceFrom </balance>
+    requires Value >=Int 0
+     andBool Value <=Int BalanceFrom
+     andBool Value <=Int Allowance   // `transfer` does not check allowance
+
+  rule <k> transferFrom(From, To, Value, { caller : Caller } ) => throw ...</k>
+       <owner> From </owner>
+       <spender> Caller </spender>
+       <amount> Allowance </amount>
+       <account>
+         <id> From </id>
+         <balance> BalanceFrom </balance>
+       </account>
+       <account>
+         <id> To </id>
+         <balance> BalanceTo </balance>
+       </account>
+    requires To =/=Int From    // sanity check
+     andBool (Value <Int 0
+      orBool Value >Int BalanceFrom
+      orBool Value >Int Allowance
+      orBool BalanceTo +Int Value >Int MAXVALUE)
+
+  rule <k> transferFrom(From, From, Value, { caller : Caller } ) => throw ...</k>
+       <owner> From </owner>
+       <spender> Caller </spender>
+       <amount> Allowance </amount>
+       <id> From </id>
+       <balance> BalanceFrom </balance>
+    requires Value <Int 0
+      orBool Value >Int BalanceFrom
+      orBool Value >Int Allowance   // `transfer` does not check allowance
 
 // mintable
 
@@ -93,41 +241,5 @@ module ERC20
       Balance >=Int Value
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
-
-// base
-
-  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => . ...</k>
-      <tokenName> TokenName => TokenNameArg </tokenName>
-      <tokenSymbol> TokenSymbol => TokenSymbolArg </tokenSymbol>
-      <tokenDecimal> TokenDecimal => TokenDecimalArg </tokenDecimal>
-      <totalSupply> TotalSupply => TotalSupplyArg </totalSupply>
-      <tokenOwner> TokenOwner => Caller </tokenOwner>
-      <supplyManager> SupplyManager => SupplyManagerArg </supplyManager>
-      <assetProtectionManager> AssetProtectionManager => AssetProtectionManagerArg </assetProtectionManager>
-  requires TokenOwner ==Int 0
-      andBool TokenDecimalArg >=Int 0
-      andBool TotalSupplyArg >=Int 0
-      andBool Caller =/=Int 0
-      andBool SupplyManagerArg =/=Int 0
-      andBool AssetProtectionManagerArg =/=Int 0
-
-  // constructor throws if it's called more than once or arguments are incorrect
-  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => throw ...</k>
-      <tokenOwner> TokenOwner </tokenOwner>
-  requires notBool (TokenOwner ==Int 0
-      andBool TokenDecimalArg >=Int 0
-      andBool TotalSupplyArg >=Int 0
-      andBool Caller =/=Int 0
-      andBool SupplyManagerArg =/=Int 0
-      andBool AssetProtectionManagerArg =/=Int 0)
- 
-// getters
-
-  rule <k> totalSupply() => Total ...</k>
-      <totalSupply> Total </totalSupply>
-      
-rule <k> balanceOf(Id) => Value ...</k>
-      <id> Id </id>
-      <balance> Value </balance>
 
 endmodule
