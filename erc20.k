@@ -31,12 +31,9 @@ module ERC20
 
   configuration <ERC20 unused="true">
                   <k> $PGM:K </k>
-                  <accounts>
-                    <account multiplicity="*" type="Set">
-                      <id> 0 </id>
-                      <balance> 0 </balance>
-                    </account>
-                  </accounts>
+                  <balances>
+                    .Map
+                  </balances>
                   <allowances>
                     <allowance multiplicity="*" type="Set" unused="true">
                       <owner> 0 </owner>
@@ -94,9 +91,8 @@ module ERC20
   rule <k> totalSupply() => Total ...</k>
       <totalSupply> Total </totalSupply>
       
-  rule <k> balanceOf(Id) => Value ...</k>
-      <id> Id </id>
-      <balance> Value </balance>
+  rule <k> balanceOf(Id) => (Balances[Id] orDefault 0) ...</k>
+      <balances> Balances:Map  </balances>
 
   rule <k> allowance(Owner, Spender) => Allowance ...</k>
        <owner> Owner </owner>
@@ -104,7 +100,7 @@ module ERC20
        <amount> Allowance </amount>
 
 // erc20
-
+/* 
   rule <k> approve(Spender, Allowance, { caller : Caller } ) => true ...</k>
        <owner> Caller </owner>
        <spender> Spender </spender>
@@ -209,15 +205,12 @@ module ERC20
     requires Value <Int 0
       orBool Value >Int BalanceFrom
       orBool Value >Int Allowance   // `transfer` does not check allowance
-
+*/
 // mintable
 
   // note that according to the spec, the funds go to SupplyManager even if the caller is Owner
   rule <k> mint(Value, { caller : Caller } ) => . ...</k>
-       <account>
-         <id> SupplyManager </id> 
-         <balance> Balance => Balance +Int Value </balance>
-       </account>
+       <balances> ... (Caller |-> OldValue => Caller |-> OldValue +Int Value) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>
@@ -226,19 +219,43 @@ module ERC20
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
+  
+  // NOTE: Kyc or a related function should have a side-effect of initiating balance. Might save a lot of headaches in mint/transfer. 
+  //       Think we could get rid of this case if so.
+  // I could not get K to let me combine this and the above function. The following expression wouldn't parse...
+  // Balances [Caller <- (Value +Int (Balances[Caller] orDefault 0))]
+  rule <k> mint(Value, { caller : Caller } ) => . ...</k>
+       <balances> Balances:Map => Balances [Caller <- Value] </balances>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+       <totalSupply> Supply => Supply +Int Value </totalSupply>
+    requires 
+      Owner =/=Int 0
+        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+        andBool Value >=Int 0
+        andBool Supply +Int Value <=Int MAXVALUE
+        andBool notBool (Caller in keys(Balances))
+
+  rule <k> mint(Value, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+       <totalSupply> Supply </totalSupply>
+    requires 
+      notBool (
+        Owner =/=Int 0
+        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+        andBool Value >=Int 0
+        andBool Supply +Int Value <=Int MAXVALUE
+      )
  
 // burnable
-
   rule <k> burn(Value, {caller: Caller}) => . ...</k>
        <totalSupply> Supply => Supply -Int Value </totalSupply>
-        <account>
-         <id> SupplyManager </id> 
-         <balance> Balance => Balance -Int Value </balance>
-       </account>
+       <balances> ... (Caller |-> OldValue => Caller |-> OldValue -Int Value) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
     requires 
-      Balance >=Int Value
+      OldValue >=Int Value
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
 
