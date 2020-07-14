@@ -127,14 +127,15 @@ module IMP
    mistake can make ERC20-K behave unexpectedly.  Such operations should not
    exist in normal implementations of languages for smart contracts.  */
 
-  rule <k> makeAccount(A,V) => . ...</k>
+  /*rule <k> makeAccount(A,V) => . ...</k>
        <accounts>... .Bag => <account> <id> A </id> <balance> V </balance> </account> ...</accounts>
        <allowances>... .Bag => <allowance> <owner> A </owner> <spenders> .Bag </spenders> </allowance> ...</allowances> 
   rule <k> makeAllowance(A,B) => . ...</k> <owner> A </owner>
        <spenders>... .Bag => <allow> <spender> B </spender> <amount> 0 </amount> </allow> ...</spenders>
-  rule <k> makeTotalSupply(I) => . ...</k> <supply> _ => I </supply> requires I >=Int 0
-  rule <k> makeCaller(I:Int) => . ...</k> <caller> _ => I </caller>
-  rule <k> makeBalance(I:Int) => . ...</k> <caller> Owner </caller> <id> Owner </id> <balance> _ => I </balance>
+       */
+  //rule <k> makeTotalSupply(I) => . ...</k> <supply> _ => I </supply> requires I >=Int 0
+  //rule <k> makeCaller(I:Int) => . ...</k> <caller> _ => I </caller>
+  //rule <k> makeBalance(I:Int) => . ...</k> <caller> Owner </caller> <id> Owner </id> <balance> _ => I </balance>
   rule <k> makeThrowAsPrintTrue  => . ...</k> <throwAsPrint> _ => true </throwAsPrint>
   rule <k> makeThrowAsPrintFalse => . ...</k> <throwAsPrint> _ => false </throwAsPrint>
   rule <k> throw => false ...</k> <throwAsPrint> true </throwAsPrint> <outpt>... .List => ListItem("THROW\n") </outpt>
@@ -187,7 +188,7 @@ caller = 7;
 makeCaller(caller);
 makeThrowAsPrintTrue;
 // ---END-OF-PREAMBLE---
-
+/* 
   syntax Stmt ::= "test.makeBalance" "(" AExp ")"   [macro]
   rule test.makeBalance(Value) =>
     v = Value;
@@ -314,5 +315,18 @@ makeThrowAsPrintTrue;
     print(" is ");
     print(allowance(a,caller));
     print("\n");
+*/
+ 
+  syntax Stmt ::= "test.mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"  [macro]  
+  rule test.mint(Value, {caller: Caller} ) =>
+    mint(Value, {caller: Caller} )
+
+  syntax Stmt ::= "test.burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"  [macro]  
+  rule test.burn(Value, {caller: Caller} ) =>
+    burn(Value, {caller: Caller} )
+
+  syntax Stmt ::= "test.constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"  [macro]  
+  rule test.constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) =>
+    constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } )
 
 endmodule
