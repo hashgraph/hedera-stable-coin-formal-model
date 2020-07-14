@@ -30,6 +30,13 @@ module ERC20-SYNTAX
                 | "claimOwnership" "(""{" "caller" ":" AExp "}" ")"            [strict]
                 | "changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
                 | "changeAssetProtectionManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
+                | "isFrozen" "(" AExp ")"                                           [strict]
+                | "isKycPassed" "(" AExp ")"                                        [strict]
+                | "setKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"         [strict]
+                | "unsetKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"       [strict]
+                | "checkTransferAllowed" "(" AExp ")"                               [strict]
+                | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"               [strict]
+                | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
                 | "throw"
 endmodule
 
@@ -42,6 +49,12 @@ module ERC20
                   <balances>
                     .Map
                   </balances>
+                  <frozen>
+                    .Map
+                  </frozen>
+                  <kycpassed>
+                    .Map
+                  </kycpassed>
                   <allowances>
                     <allowance multiplicity="*" type="Set" unused="true">
                       <owner> 0 </owner>
@@ -119,6 +132,12 @@ module ERC20
        <owner> Owner </owner>
        <spender> Spender </spender>
        <amount> Allowance </amount>
+
+  rule <k> isFrozen(Id) => (Frozen[Id] orDefault false) ...</k>
+      <frozen> Frozen:Map  </frozen>
+
+  rule <k> isKycPassed(Id) => (KycPassed[Id] orDefault false) ...</k>
+      <kycpassed> KycPassed:Map  </kycpassed>
 
 // erc20
 /* 
@@ -280,6 +299,44 @@ module ERC20
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
 
+// compliant
+
+  // allowed if passed kyc and frozen is unset
+  rule <k> checkTransferAllowed(Account) => true ...</k>
+      <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
+      <frozen> Frozen:Map </frozen>
+      <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+      andBool KycPassed
+      andBool (notBool Account in keys(Frozen))
+
+  // allowed if passed kyc and frozen is set to false
+  rule <k> checkTransferAllowed(Account) => true ...</k>
+      <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
+      <frozen> ... (Account |-> Frozen) ... </frozen>
+      <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+      andBool KycPassed
+      andBool (notBool Frozen)
+
+  // disallowed if passed kyc is unset or account is frozen
+  rule <k> checkTransferAllowed(Account) => false ...</k>
+      <kycpassed> KycPassed:Map </kycpassed>
+      <frozen> ... (Account |-> Frozen) ... </frozen>
+      <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool (notBool Account in keys(KycPassed))
+      orBool Frozen
+
+  // disallowed if passed kyc is set to false or account is frozen
+  rule <k> checkTransferAllowed(Account) => false ...</k>
+      <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
+      <frozen> ... (Account |-> Frozen) ... </frozen>
+      <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool (notBool KycPassed)
+      orBool Frozen
+
 // privileged roles
 
   rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
@@ -329,5 +386,97 @@ module ERC20
     requires TokenOwner =/=Int Caller
       orBool TokenOwner ==Int 0
       orBool AssetProtectionManager ==Int 0
+
+// unclassified
+
+  // set kycpassed if the value is unset (i.e., set for the first time). Initializes frozen as well.
+  rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <kycpassed> KycPassed:Map => KycPassed [Account <- true] </kycpassed>
+       <frozen> Frozen:Map => Frozen [Account <- false] </frozen>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool notBool Account in keys(KycPassed)
+
+  // set kycpassed if the value is false
+  rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <kycpassed> ... (Account |-> false => Account |-> true) ... </kycpassed>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+
+  rule <k> setKycPassed(_, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+
+  rule <k> setKycPassed(Account, { caller : _ } ) => throw ...</k>
+       <kycpassed> ... (Account |-> true) ... </kycpassed>
+
+  // unset kycpassed
+  rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <kycpassed> ... (Account |-> true => Account |-> false) ... </kycpassed>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+
+  rule <k> unsetKycPassed(_, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+
+  rule <k> unsetKycPassed(Account, { caller : _ } ) => throw ...</k>
+       <kycpassed> KycPassed:Map </kycpassed>
+    requires notBool Account in keys(KycPassed)
+
+  rule <k> unsetKycPassed(Account, { caller : _ } ) => throw ...</k>
+       <kycpassed> ... (Account |-> false) ... </kycpassed>
+
+  // freeze
+  rule <k> freeze(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <frozen> ... (Account |-> false => Account |-> true) ... </frozen>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+   
+  rule <k> freeze(_, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+
+  rule <k> freeze(Account, { caller : _ } ) => throw ...</k>
+       <frozen> Frozen:Map </frozen>
+    requires notBool Account in keys(Frozen)
+
+  rule <k> freeze(Account, { caller : _ } ) => throw ...</k>
+       <frozen> ... (Account |-> true) ... </frozen>
+
+  // unfreeze
+  rule <k> unfreeze(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <frozen> ... (Account |-> true => Account |-> false) ... </frozen>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+   
+  rule <k> unfreeze(_, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+
+  rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
+       <frozen> Frozen:Map </frozen>
+    requires notBool Account in keys(Frozen)
+
+  rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
+       <frozen> ... (Account |-> false) ... </frozen>
 
 endmodule
