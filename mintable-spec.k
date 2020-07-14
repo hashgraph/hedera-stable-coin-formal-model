@@ -4,10 +4,7 @@ module MINTABLE-SPEC
   imports ERC20
 
 rule <k> mint(Value, { caller : Caller } ) => . ...</k>
-       <account>
-         <id> SupplyManager </id> 
-         <balance> Balance => Balance +Int Value </balance>
-       </account>
+       <balances> ... (SupplyManager |-> Balance => SupplyManager |-> Balance +Int Value) ...</balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>

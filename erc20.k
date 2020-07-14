@@ -210,7 +210,7 @@ module ERC20
 
   // note that according to the spec, the funds go to SupplyManager even if the caller is Owner
   rule <k> mint(Value, { caller : Caller } ) => . ...</k>
-       <balances> ... (Caller |-> OldValue => Caller |-> OldValue +Int Value) ... </balances>
+       <balances> ... (SupplyManager |-> Balance => SupplyManager |-> Balance +Int Value) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>
@@ -219,13 +219,13 @@ module ERC20
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
-  
+        
   // NOTE: Kyc or a related function should have a side-effect of initiating balance. Might save a lot of headaches in mint/transfer. 
   //       Think we could get rid of this case if so.
   // I could not get K to let me combine this and the above function. The following expression wouldn't parse...
   // Balances [Caller <- (Value +Int (Balances[Caller] orDefault 0))]
   rule <k> mint(Value, { caller : Caller } ) => . ...</k>
-       <balances> Balances:Map => Balances [Caller <- Value] </balances>
+       <balances> Balances:Map => Balances [SupplyManager <- Value] </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>
@@ -234,7 +234,7 @@ module ERC20
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
-        andBool notBool (Caller in keys(Balances))
+        andBool notBool (SupplyManager in keys(Balances))
 
   rule <k> mint(Value, { caller : Caller } ) => throw ...</k>
        <tokenOwner> Owner </tokenOwner>
@@ -251,7 +251,7 @@ module ERC20
 // burnable
   rule <k> burn(Value, {caller: Caller}) => . ...</k>
        <totalSupply> Supply => Supply -Int Value </totalSupply>
-       <balances> ... (Caller |-> OldValue => Caller |-> OldValue -Int Value) ... </balances>
+       <balances> ... (SupplyManager |-> OldValue => SupplyManager |-> OldValue -Int Value) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
     requires 
