@@ -22,7 +22,7 @@ rule
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
 
-/*
+
 // A burn followed by a mint will result in no changes to the totalSupply (disallowing underflow)
 rule 
     <k> 
@@ -32,7 +32,7 @@ rule
       =>
         .
     ...</k>
-       <balances> ... SupplyManager |-> Balance ... </balances>
+       <balances> ... (SupplyManager |-> Balance) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply </totalSupply>
@@ -41,5 +41,6 @@ rule
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Balance >=Int Value
- */
+        andBool Supply +Int Balance <=Int MAXVALUE
+ 
 endmodule
