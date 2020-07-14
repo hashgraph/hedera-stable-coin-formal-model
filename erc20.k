@@ -13,6 +13,10 @@ module ERC20-SYNTAX
   syntax Address ::= Int  // this can be changed
   syntax AExp ::= Value | Address
                 | "totalSupply" "(" ")"
+                | "owner" "(" ")"
+                | "supplyManager" "(" ")"
+                | "assetProtectionManager" "(" ")"
+                | "proposedOwner" "(" ")"
                 | "balanceOf" "(" AExp ")"                             [strict]
                 | "allowance" "(" AExp "," AExp ")"                    [strict]
   syntax BExp ::= Bool
@@ -22,6 +26,10 @@ module ERC20-SYNTAX
                 | "transferFrom" "(" AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"        [strict]
                 | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
                 | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
+                | "proposeOwner" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
+                | "claimOwnership" "(""{" "caller" ":" AExp "}" ")"            [strict]
+                | "changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
+                | "changeAssetProtectionManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
                 | "throw"
 endmodule
 
@@ -55,6 +63,7 @@ module ERC20
                   <tokenOwner> 0 </tokenOwner>
                   <supplyManager> 0 </supplyManager>
                   <assetProtectionManager> 0 </assetProtectionManager>
+                  <proposedOwner> 0 </proposedOwner>
                 </ERC20>
 
   syntax KResult ::= Int | Bool | String
@@ -97,6 +106,18 @@ module ERC20
   rule <k> balanceOf(Id) => Value ...</k>
       <id> Id </id>
       <balance> Value </balance>
+
+  rule <k> owner() => TokenOwner ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+
+  rule <k> supplyManager() => SupplyManager ...</k>
+      <supplyManager> SupplyManager </supplyManager>
+
+  rule <k> assetProtectionManager() => AssetProtectionManager ...</k>
+      <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+  
+  rule <k> proposedOwner() => ProposedOwner ...</k>
+      <proposedOwner> ProposedOwner </proposedOwner>
 
   rule <k> allowance(Owner, Spender) => Allowance ...</k>
        <owner> Owner </owner>
@@ -241,5 +262,55 @@ module ERC20
       Balance >=Int Value
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
+
+// privileged roles
+
+  rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
+       <tokenOwner> Caller </tokenOwner>
+       <proposedOwner> _ => ProposedOwner </proposedOwner>
+    requires Caller =/=Int 0
+      andBool ProposedOwner =/=Int 0
+
+  rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int Caller
+      orBool TokenOwner ==Int 0
+      orBool ProposedOwner ==Int 0
+
+  rule <k> claimOwnership( { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner => Caller </tokenOwner>
+       <proposedOwner> Caller => 0 </proposedOwner>
+    requires Caller =/=Int 0
+      andBool TokenOwner =/=Int 0
+
+  rule <k> claimOwnership( { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <proposedOwner> ProposedOwner </proposedOwner>
+    requires ProposedOwner =/=Int Caller
+      orBool TokenOwner ==Int 0
+
+  rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => . ...</k>
+       <tokenOwner> Caller </tokenOwner>
+       <supplyManager> _ => SupplyManager </supplyManager>
+    requires Caller =/=Int 0
+      andBool SupplyManager =/=Int 0
+
+  rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int Caller
+      orBool TokenOwner ==Int 0
+      orBool SupplyManager ==Int 0
+
+  rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => . ...</k>
+       <tokenOwner> Caller </tokenOwner>
+       <assetProtectionManager> _ => AssetProtectionManager </assetProtectionManager>
+    requires Caller =/=Int 0
+      andBool AssetProtectionManager =/=Int 0
+
+  rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int Caller
+      orBool TokenOwner ==Int 0
+      orBool AssetProtectionManager ==Int 0
 
 endmodule
