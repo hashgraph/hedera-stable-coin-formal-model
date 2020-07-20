@@ -8,7 +8,7 @@
 
 module ERC20-SYNTAX
   imports DOMAINS-SYNTAX
-  
+
   syntax Value   ::= Int  // this can be changed
   syntax Address ::= Int  // this can be changed
   syntax AExp ::= Value | Address
@@ -107,12 +107,12 @@ module ERC20
       andBool Caller =/=Int 0
       andBool SupplyManagerArg =/=Int 0
       andBool AssetProtectionManagerArg =/=Int 0)
- 
+
 // getters
 
   rule <k> totalSupply() => Total ...</k>
       <totalSupply> Total </totalSupply>
-      
+
   rule <k> balanceOf(Id) => (Balances[Id] orDefault 0) ...</k>
       <balances> Balances:Map  </balances>
 
@@ -124,7 +124,7 @@ module ERC20
 
   rule <k> assetProtectionManager() => AssetProtectionManager ...</k>
       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-  
+
   rule <k> proposedOwner() => ProposedOwner ...</k>
       <proposedOwner> ProposedOwner </proposedOwner>
 
@@ -140,7 +140,7 @@ module ERC20
       <kycpassed> KycPassed:Map  </kycpassed>
 
 // erc20
-/* 
+/*
   rule <k> approve(Spender, Allowance, { caller : Caller } ) => true ...</k>
        <owner> Caller </owner>
        <spender> Spender </spender>
@@ -254,13 +254,13 @@ module ERC20
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>
-    requires 
+    requires
       Owner =/=Int 0
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
-        
-  // NOTE: Kyc or a related function should have a side-effect of initiating balance. Might save a lot of headaches in mint/transfer. 
+
+  // NOTE: Kyc or a related function should have a side-effect of initiating balance. Might save a lot of headaches in mint/transfer.
   //       Think we could get rid of this case if so.
   // I could not get K to let me combine this and the above function. The following expression wouldn't parse...
   // Balances [Caller <- (Value +Int (Balances[Caller] orDefault 0))]
@@ -269,7 +269,7 @@ module ERC20
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>
-    requires 
+    requires
       Owner =/=Int 0
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
@@ -280,27 +280,28 @@ module ERC20
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply </totalSupply>
-    requires 
+    requires
       notBool (
         Owner =/=Int 0
         andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
         andBool Value >=Int 0
         andBool Supply +Int Value <=Int MAXVALUE
       )
- 
+
 // burnable
   rule <k> burn(Value, {caller: Caller}) => . ...</k>
        <totalSupply> Supply => Supply -Int Value </totalSupply>
        <balances> ... (SupplyManager |-> OldValue => SupplyManager |-> OldValue -Int Value) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
-    requires 
+    requires
       OldValue >=Int Value
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
 
 // compliant
 
+/* // jgorzny: isn't it true that if kyc is set, then account is in frozen?
   // allowed if passed kyc and frozen is unset
   rule <k> checkTransferAllowed(Account) => true ...</k>
       <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
@@ -309,6 +310,7 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool KycPassed
       andBool (notBool Account in keys(Frozen))
+*/
 
   // allowed if passed kyc and frozen is set to false
   rule <k> checkTransferAllowed(Account) => true ...</k>
@@ -393,19 +395,11 @@ module ERC20
   rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> KycPassed:Map => KycPassed [Account <- true] </kycpassed>
-       <frozen> Frozen:Map => Frozen [Account <- false] </frozen>
+       <kycpassed> KycPassed => KycPassed[Account <- true] </kycpassed>
+       <frozen> Frozen => Frozen[Account <- false] </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-      andBool notBool Account in keys(KycPassed)
-
-  // set kycpassed if the value is false
-  rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (Account |-> false => Account |-> true) ... </kycpassed>
-    requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool notBool (Account in keys(KycPassed))
 
   rule <k> setKycPassed(_, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
@@ -415,6 +409,16 @@ module ERC20
 
   rule <k> setKycPassed(Account, { caller : _ } ) => throw ...</k>
        <kycpassed> ... (Account |-> true) ... </kycpassed>
+
+
+  // set kycpassed if the value is false
+  rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <kycpassed> ... (Account |-> false => Account |-> true) ... </kycpassed>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+
 
   // unset kycpassed
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
@@ -432,7 +436,7 @@ module ERC20
 
   rule <k> unsetKycPassed(Account, { caller : _ } ) => throw ...</k>
        <kycpassed> KycPassed:Map </kycpassed>
-    requires notBool Account in keys(KycPassed)
+    requires notBool (Account in keys(KycPassed))
 
   rule <k> unsetKycPassed(Account, { caller : _ } ) => throw ...</k>
        <kycpassed> ... (Account |-> false) ... </kycpassed>
@@ -444,7 +448,7 @@ module ERC20
        <frozen> ... (Account |-> false => Account |-> true) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-   
+
   rule <k> freeze(_, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
@@ -453,7 +457,7 @@ module ERC20
 
   rule <k> freeze(Account, { caller : _ } ) => throw ...</k>
        <frozen> Frozen:Map </frozen>
-    requires notBool Account in keys(Frozen)
+    requires notBool (Account in keys(Frozen))
 
   rule <k> freeze(Account, { caller : _ } ) => throw ...</k>
        <frozen> ... (Account |-> true) ... </frozen>
@@ -465,7 +469,7 @@ module ERC20
        <frozen> ... (Account |-> true => Account |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-   
+
   rule <k> unfreeze(_, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
@@ -474,7 +478,7 @@ module ERC20
 
   rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
        <frozen> Frozen:Map </frozen>
-    requires notBool Account in keys(Frozen)
+    requires notBool (Account in keys(Frozen))
 
   rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
        <frozen> ... (Account |-> false) ... </frozen>
