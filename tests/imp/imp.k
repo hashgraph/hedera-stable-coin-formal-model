@@ -254,36 +254,19 @@ makeThrowAsPrintTrue;
     print(b);
     print("\n");
     approve(b, v);
+*/
+  // Note: we must consume the ";" in the case of void functions, else the evaluation hangs
+  // We might need to either re-think "throw" or either create a return type of "void" to handle all cases
+  syntax Stmt ::= "test.transfer" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")" ";"  [macro]
+  rule test.transfer(To, Value, {caller: Caller}); =>
+    transfer(To, Value, {caller: Caller}) // no ";"
 
-  syntax Stmt ::= "test.transfer" "(" AExp "," AExp ")"  [macro]
-  rule test.transfer(To, Value) =>
-    b = To;
-    v = Value;
-    print(caller);
-    print(" is transferring ");
-    print(v);
-    print(" to ");
-    print(b);
-    print("\n");
-    transfer(b,v);
-    print("Balance of ");
-    print(caller);
-    print(" is ");
-    print(balanceOf(caller));
-    print("\n");
-    print("Balance of ");
-    print(b);
-    print(" is ");
-    print(balanceOf(b));
-    print("\n");
-    print("Allowance of ");
-    print(caller);
-    print(" for ");
-    print(b);
-    print(" is ");
-    print(allowance(caller,b));
-    print("\n");
+  syntax Stmt ::= "test.transferFrom" "(" AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" ";" [macro]
+  rule test.transferFrom(From, To, Value, {caller: Caller}); =>
+    transferFrom(From, To, Value, {caller: Caller}) // no ";"
 
+
+/* 
   syntax Stmt ::= "test.transferFrom" "(" AExp "," AExp "," AExp ")"  [macro]
   rule test.transferFrom(From, To, Value) =>
     a = From;
@@ -317,6 +300,10 @@ makeThrowAsPrintTrue;
     print("\n");
 */
  
+  syntax Stmt ::= "test.changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"  [macro]  
+  rule test.changeSupplyManager(NewSupplyManager, {caller: Caller} ) =>
+    changeSupplyManager(NewSupplyManager, {caller: Caller} )
+
   syntax Stmt ::= "test.mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"  [macro]  
   rule test.mint(Value, {caller: Caller} ) =>
     mint(Value, {caller: Caller} )
@@ -329,4 +316,25 @@ makeThrowAsPrintTrue;
   rule test.constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) =>
     constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } )
 
+  syntax Stmt ::= "test.checkTransferAllowed" "(" AExp ")"  [macro]  
+  rule test.checkTransferAllowed(Target) =>
+    checkTransferAllowed(Target)
+
+  syntax Stmt ::= "test.setKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")" [macro]
+  rule test.setKycPassed(Account, {caller: Caller}) =>
+    setKycPassed(Account, {caller: Caller})
+
+  syntax Stmt ::= "test.freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")" [macro]
+  rule test.freeze(Account, {caller: Caller}) =>
+    freeze(Account, {caller: Caller})
+
+  syntax Stmt ::= "test.approveAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [macro]
+  rule test.approveAllowance(Spender, Value, {caller: Caller}) =>
+    approveAllowance(Spender, Value, {caller: Caller})
+
+  syntax Stmt ::= "test.allowance" "(" AExp "," AExp ")" [macro]
+  rule test.allowance(Allower, Spender) =>
+    allowance(Allower, Spender)
+
 endmodule
+
