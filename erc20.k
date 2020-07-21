@@ -529,7 +529,6 @@ module ERC20
   rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
        <frozen> ... (Account |-> false) ... </frozen>
 
-<<<<<<< HEAD
   // wipe
   rule <k> wipe(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
@@ -570,8 +569,5 @@ module ERC20
     requires notBool (Account ==Int Owner
       orBool Account ==Int SupplyManager
       orBool Account ==Int AssetProtectionManager)
-
-=======
->>>>>>> added transfer rules
 
 endmodule
