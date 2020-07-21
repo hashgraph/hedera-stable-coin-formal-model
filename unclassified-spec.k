@@ -223,4 +223,74 @@ rule
   requires notBool (Account in keys(Frozen))
 */
 
+  // correctness of `wipe` - update
+  rule <k>
+          freeze(Account:Int, {caller: Caller})
+          ~>
+          wipe(Account, {caller: Caller})
+      =>
+          .
+      ...</k>
+        <tokenOwner> TokenOwner </tokenOwner>
+        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+        <frozen> ... (Account |-> false => Account |-> true) ... </frozen>
+        <balances> ... (Account |-> Bal => Account |-> 0) ... </balances>
+        <totalSupply> Supply => Supply -Int Bal </totalSupply>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+
+  // correctness of `wipe` - bad caller
+  rule <k>
+          wipe(Account:Int, {caller: Caller})
+      =>
+          throw
+      ...</k>
+        <tokenOwner> TokenOwner </tokenOwner>
+        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+        <totalSupply> _Supply </totalSupply>
+        <frozen> ... (Account |-> _) ... </frozen>
+        <balances> ... (Account |-> _) ... </balances>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+
+  // correctness of `wipe` - account not frozen
+  rule <k>
+          wipe(Account:Int, {caller: Caller})
+      =>
+          throw
+      ...</k>
+        <tokenOwner> TokenOwner </tokenOwner>
+        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+        <totalSupply> _Supply </totalSupply>
+        <frozen> ... (Account |-> false) ... </frozen>
+        <balances> ... (Account |-> _) ... </balances>
+    requires TokenOwner =/=Int 0
+      andBool (Caller =/=Int TokenOwner orBool Caller =/=Int AssetProtectionManager)
+
+  // correctness of `isPrivilegedRole` - true
+  rule <k>
+          isPrivilegedRole(Account:Int)
+      =>
+          true
+      ...</k>
+        <tokenOwner> TokenOwner </tokenOwner>
+        <supplyManager> SupplyManager </supplyManager>
+        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires (TokenOwner =/=Int 0 orBool AssetProtectionManager =/=Int 0 orBool SupplyManager =/=Int 0)
+      andBool (Account ==Int TokenOwner orBool Account ==Int AssetProtectionManager
+      orBool Account ==Int SupplyManager)
+
+
+  // correctness of `isPrivilegedRole` - false
+  rule <k>
+          isPrivilegedRole(Account:Int)
+      =>
+          false
+      ...</k>
+        <tokenOwner> TokenOwner </tokenOwner>
+        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+        <supplyManager> SupplyManager </supplyManager>
+    requires notBool(Account ==Int TokenOwner
+      orBool Account ==Int AssetProtectionManager orBool Account ==Int SupplyManager)
+
 endmodule

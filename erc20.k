@@ -37,6 +37,8 @@ module ERC20-SYNTAX
                 | "checkTransferAllowed" "(" AExp ")"                               [strict]
                 | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"               [strict]
                 | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
+                | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                 [strict]
+                | "isPrivilegedRole" "(" AExp ")"                                   [strict]
                 | "throw"
 endmodule
 
@@ -482,5 +484,47 @@ module ERC20
 
   rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
        <frozen> ... (Account |-> false) ... </frozen>
+
+  // wipe
+  rule <k> wipe(Account, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <frozen> ... (Account |-> true) ... </frozen>
+       <balances> ... (Account |-> Bal => Account |-> 0) ... </balances>
+       <totalSupply> Supply => Supply -Int Bal </totalSupply>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+
+  rule <k> wipe(_, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+
+
+  rule <k> wipe(Account, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <frozen> ... (Account |-> false) ... </frozen>
+    requires TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+
+  // isPrivilegedRole
+  rule <k> isPrivilegedRole(Account) => true ...</k>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires Account ==Int Owner
+      orBool Account ==Int SupplyManager
+      orBool Account ==Int AssetProtectionManager
+
+  rule <k> isPrivilegedRole(Account) => false ...</k>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires notBool (Account ==Int Owner
+      orBool Account ==Int SupplyManager
+      orBool Account ==Int AssetProtectionManager)
+
 
 endmodule
