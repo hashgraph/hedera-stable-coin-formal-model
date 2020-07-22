@@ -80,32 +80,30 @@ module ERC20
   syntax Int ::= "MAXVALUE"  [function]
   rule MAXVALUE => 2 ^Int 256 -Int 1
 
+  // propagates exceptions
+  rule <k> throw ~> _ => throw </k>
+
 // base
 
   rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => . ...</k>
+      <balances> Balances:Map => Balances [SupplyManagerArg <- TotalSupplyArg] </balances>
+      <kycpassed> KycPassed => KycPassed[Caller <- true][SupplyManagerArg <- true][AssetProtectionManagerArg <- true] </kycpassed>
       <tokenName> _ => TokenNameArg </tokenName>
       <tokenSymbol> _ => TokenSymbolArg </tokenSymbol>
       <tokenDecimal> _ => TokenDecimalArg </tokenDecimal>
       <totalSupply> _ => TotalSupplyArg </totalSupply>
-      <tokenOwner> TokenOwner => Caller </tokenOwner>
+      <tokenOwner> 0 => Caller </tokenOwner>
       <supplyManager> _ => SupplyManagerArg </supplyManager>
       <assetProtectionManager> _ => AssetProtectionManagerArg </assetProtectionManager>
-    requires TokenOwner ==Int 0
-      andBool TokenDecimalArg >=Int 0
+      <proposedOwner> 0 </proposedOwner>
+    requires TokenDecimalArg >=Int 0
       andBool TotalSupplyArg >=Int 0
       andBool Caller =/=Int 0
       andBool SupplyManagerArg =/=Int 0
       andBool AssetProtectionManagerArg =/=Int 0
 
   // constructor throws if it's called more than once or arguments are incorrect
-  rule <k> constructor(_, _, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => throw ...</k>
-      <tokenOwner> TokenOwner </tokenOwner>
-    requires notBool (TokenOwner ==Int 0
-      andBool TokenDecimalArg >=Int 0
-      andBool TotalSupplyArg >=Int 0
-      andBool Caller =/=Int 0
-      andBool SupplyManagerArg =/=Int 0
-      andBool AssetProtectionManagerArg =/=Int 0)
+  rule <k> constructor(_, _, _, _, _, _, { caller : _ } ) => throw ...</k> [owise]
 
 // getters
 
