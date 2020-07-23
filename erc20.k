@@ -41,6 +41,7 @@ module ERC20-SYNTAX
                 | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
                 | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                 [strict]
                 | "isPrivilegedRole" "(" AExp ")"                                   [strict]
+                | "initAccount" "(" AExp ")"                                        [strict]
                 | "throw"
 endmodule
 
@@ -137,8 +138,23 @@ module ERC20
          <spenders> ... (Spender |-> Value) ... </spenders>
        </allowance>
   
-  rule <k> allowance(Allower, Spender) => 0 ... </k>
+  rule <k> allowance(_, _) => 0 ... </k>
        [owise]
+
+// helpers
+
+  rule <k> initAccount(Account) => . ...</k>
+      <balances> Balances:Map => Balances[Account <- 0] </balances>
+      <frozen> Frozen => Frozen[Account <- false] </frozen>
+      <kycpassed> KycPassed => KycPassed[Account <- false] </kycpassed>
+      <tokenOwner> Owner </tokenOwner>
+      <allowance>
+         <allower> Account </allower>
+         <spenders> ... (0 |-> 0) ... </spenders>
+       </allowance>
+    requires Owner =/=Int 0
+
+  rule <k> initAccount(_) => throw ...</k> [owise]
 
 // mintable
 
@@ -314,7 +330,7 @@ module ERC20
     )
 
   // transfer case: To=/=From, To or From not in a map, fail
-  rule <k> transfer(To, Value, { caller : From } ) => throw ...</k>
+  rule <k> transfer(To, _, { caller : From } ) => throw ...</k>
        <balances> Balances </balances>  
        <kycpassed> KycPassed </kycpassed>
        <frozen> Frozen </frozen>
@@ -341,7 +357,7 @@ module ERC20
     )
 
   // transfer case: To == From, Account not in a map, fail
-  rule <k> transfer(Account, Value, { caller : Account } ) => throw ...</k>
+  rule <k> transfer(Account, _, { caller : Account } ) => throw ...</k>
        <balances> Balances </balances>  
        <kycpassed> KycPassed </kycpassed>
        <frozen> Frozen </frozen>
@@ -380,7 +396,7 @@ module ERC20
       andBool Allowance >=Int Value
 
   // transferFrom case: fail otherwise
-  rule <k> transferFrom(From, To, Value, {caller: Caller}) => throw ... </k> [owise]
+  rule <k> transferFrom(_, _, _, {caller: _}) => throw ... </k> [owise]
 
 // privileged roles
 
@@ -390,11 +406,7 @@ module ERC20
     requires Caller =/=Int 0
       andBool ProposedOwner =/=Int 0
 
-  rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-    requires TokenOwner =/=Int Caller
-      orBool TokenOwner ==Int 0
-      orBool ProposedOwner ==Int 0
+  rule <k> proposeOwner(_, { caller : _ } ) => throw ...</k> [owise]
 
   rule <k> claimOwnership( { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner => Caller </tokenOwner>
@@ -402,11 +414,7 @@ module ERC20
     requires Caller =/=Int 0
       andBool TokenOwner =/=Int 0
 
-  rule <k> claimOwnership( { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <proposedOwner> ProposedOwner </proposedOwner>
-    requires ProposedOwner =/=Int Caller
-      orBool TokenOwner ==Int 0
+  rule <k> claimOwnership( { caller : _ } ) => throw ...</k> [owise]
 
   rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => . ...</k>
        <tokenOwner> Caller </tokenOwner>
@@ -414,11 +422,7 @@ module ERC20
     requires Caller =/=Int 0
       andBool SupplyManager =/=Int 0
 
-  rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-    requires TokenOwner =/=Int Caller
-      orBool TokenOwner ==Int 0
-      orBool SupplyManager ==Int 0
+  rule <k> changeSupplyManager(_, { caller : _ } ) => throw ...</k> [owise]
 
   rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => . ...</k>
        <tokenOwner> Caller </tokenOwner>
@@ -426,34 +430,9 @@ module ERC20
     requires Caller =/=Int 0
       andBool AssetProtectionManager =/=Int 0
 
-  rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-    requires TokenOwner =/=Int Caller
-      orBool TokenOwner ==Int 0
-      orBool AssetProtectionManager ==Int 0
+  rule <k> changeAssetProtectionManager(_, { caller : _ } ) => throw ...</k> [owise]
 
 // unclassified
-
-  // set kycpassed if the value is unset (i.e., set for the first time). Initializes frozen and balance as well.
-  rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> KycPassed => KycPassed[Account <- true] </kycpassed>
-       <frozen> Frozen => Frozen[Account <- false] </frozen>
-       <balances> Balances => Balances[Account <- 0] </balances>
-    requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-      andBool notBool (Account in keys(KycPassed))
-
-  rule <k> setKycPassed(_, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-    requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-
-  rule <k> setKycPassed(Account, { caller : _ } ) => throw ...</k>
-       <kycpassed> ... (Account |-> true) ... </kycpassed>
-
 
   // set kycpassed if the value is false
   rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
@@ -463,6 +442,7 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
+  rule <k> setKycPassed(_, { caller : _ } ) => throw ...</k> [owise]
 
   // unset kycpassed
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
@@ -472,18 +452,7 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
-  rule <k> unsetKycPassed(_, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-    requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-
-  rule <k> unsetKycPassed(Account, { caller : _ } ) => throw ...</k>
-       <kycpassed> KycPassed:Map </kycpassed>
-    requires notBool (Account in keys(KycPassed))
-
-  rule <k> unsetKycPassed(Account, { caller : _ } ) => throw ...</k>
-       <kycpassed> ... (Account |-> false) ... </kycpassed>
+  rule <k> unsetKycPassed(_, { caller : _ } ) => throw ...</k> [owise]
 
   // freeze
   rule <k> freeze(Account, { caller : Caller } ) => . ...</k>
@@ -493,18 +462,7 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
-  rule <k> freeze(_, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-    requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-
-  rule <k> freeze(Account, { caller : _ } ) => throw ...</k>
-       <frozen> Frozen:Map </frozen>
-    requires notBool (Account in keys(Frozen))
-
-  rule <k> freeze(Account, { caller : _ } ) => throw ...</k>
-       <frozen> ... (Account |-> true) ... </frozen>
+  rule <k> freeze(_, { caller : _ } ) => throw ...</k> [owise]
 
   // unfreeze
   rule <k> unfreeze(Account, { caller : Caller } ) => . ...</k>
@@ -514,18 +472,7 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
-  rule <k> unfreeze(_, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-    requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-
-  rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
-       <frozen> Frozen:Map </frozen>
-    requires notBool (Account in keys(Frozen))
-
-  rule <k> unfreeze(Account, { caller : _ } ) => throw ...</k>
-       <frozen> ... (Account |-> false) ... </frozen>
+  rule <k> unfreeze(_, { caller : _ } ) => throw ...</k> [owise]
 
   // wipe
   rule <k> wipe(Account, { caller : Caller } ) => . ...</k>
@@ -537,19 +484,7 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
-  rule <k> wipe(_, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-    requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-
-
-  rule <k> wipe(Account, { caller : Caller } ) => throw ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (Account |-> false) ... </frozen>
-    requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+  rule <k> wipe(_, { caller : _ } ) => throw ...</k> [owise]
 
   // isPrivilegedRole
   rule <k> isPrivilegedRole(Account) => true ...</k>
@@ -560,12 +495,6 @@ module ERC20
       orBool Account ==Int SupplyManager
       orBool Account ==Int AssetProtectionManager
 
-  rule <k> isPrivilegedRole(Account) => false ...</k>
-       <tokenOwner> Owner </tokenOwner>
-       <supplyManager> SupplyManager </supplyManager>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-    requires notBool (Account ==Int Owner
-      orBool Account ==Int SupplyManager
-      orBool Account ==Int AssetProtectionManager)
+  rule <k> isPrivilegedRole(_) => false ...</k> [owise]
 
 endmodule

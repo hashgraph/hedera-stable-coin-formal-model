@@ -48,26 +48,6 @@ module UNCLASSIFIED-SPEC
           andBool Caller =/=Int 0
           andBool (Caller =/=Int AssetProtectionManager andBool Caller =/=Int Owner)
 
-/*
-  // correctness of only `setKycPassed` -- add case
-  // jgorzny - I cannot get this to work; tried many things.
-  rule
-      <k>
-          setKycPassed(Target:Int, {caller: Caller})
-        =>
-          .
-      ...</k>
-         <tokenOwner> Owner </tokenOwner>
-         <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-         <kycpassed> KycPassed => KycPassed[Target <- true]  </kycpassed>
-         <frozen> Frozen => Frozen[Target <- false]  </frozen>
-      requires
-        Owner =/=Int 0
-          andBool Caller =/=Int 0
-          andBool (Caller ==Int AssetProtectionManager orBool Caller ==Int Owner)
-          //andBool notBool (Target in keys(KycPassed))
-  */
-
   // correctness of `unsetKycPassed` - good case
   rule
       <k>
@@ -93,20 +73,6 @@ module UNCLASSIFIED-SPEC
        <kycpassed> ... (Target |-> _) ... </kycpassed> // jgorzny would like to drop this.
     requires TokenOwner ==Int 0
       orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-
-
-/* // jgorzny - not working
-  // correctness of `unsetKycPassed` - throw if not in map
-  rule
-      <k>
-        unsetKycPassed(Account:Int, {caller: _})
-      =>
-        throw
-      ...</k>
-       <kycpassed> KycPassed:Map </kycpassed>
-    requires notBool (Account in keys(KycPassed))
-*/
-
 
   // correctness of `unsetKycPassed` - throw case (already false)
   rule
@@ -158,18 +124,6 @@ module UNCLASSIFIED-SPEC
       requires
         Owner =/=Int 0
           andBool Caller =/=Int 0
-/*
- // jgorzny - not working
-  // correctness of `freeze` - throw if not in map
-  rule
-      <k>
-        freeze(Account:Int, {caller: _})
-      =>
-        throw
-      ...</k>
-       <frozen> Frozen:Map </frozen>
-    requires notBool (Account in keys(Frozen))
-*/
 
 // correctness of `unfreeze` - update
 rule <k>
@@ -209,19 +163,6 @@ rule
     requires
       Owner =/=Int 0
         andBool Caller =/=Int 0
-
-/*
-// jgorzny - not working
-// correctness of `unfreeze` - throw if not in map
-rule
-    <k>
-      unfreeze(Account:Int, {caller: _})
-    =>
-      throw
-    ...</k>
-     <frozen> Frozen:Map </frozen>
-  requires notBool (Account in keys(Frozen))
-*/
 
   // correctness of `wipe` - update
   rule <k>
