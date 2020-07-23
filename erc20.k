@@ -434,21 +434,20 @@ module ERC20
 
 // unclassified
 
-  // set kycpassed if the value is false
   rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (Account |-> false => Account |-> true) ... </kycpassed>
+       <kycpassed> ... (.Map => Account |-> true) ... </kycpassed>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-
+  
   rule <k> setKycPassed(_, { caller : _ } ) => throw ...</k> [owise]
 
   // unset kycpassed
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (Account |-> true => Account |-> false) ... </kycpassed>
+       <kycpassed> ... (.Map => Account |-> false) ... </kycpassed>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
@@ -458,7 +457,7 @@ module ERC20
   rule <k> freeze(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (Account |-> false => Account |-> true) ... </frozen>
+       <frozen> ... (.Map => Account |-> true) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
@@ -468,7 +467,7 @@ module ERC20
   rule <k> unfreeze(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (Account |-> true => Account |-> false) ... </frozen>
+       <frozen> ... (.Map => Account |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
