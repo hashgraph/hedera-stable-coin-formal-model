@@ -188,4 +188,68 @@ rule <k> isPrivilegedRole(Account:Int) => false ...</k>
   requires notBool(Account ==Int TokenOwner
     orBool Account ==Int AssetProtectionManager orBool Account ==Int SupplyManager)
 
+// increase allowance: caller and spender exist
+rule <k> increaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+      <allowances>
+       ...
+       <allowance>
+          <allower> Caller </allower>
+          <spenders> ... (Spender |-> OldAllowance => Spender |-> OldAllowance +Int Value) ... </spenders>
+        </allowance>
+        ...
+      </allowances>
+  requires TokenOwner =/=Int 0
+    andBool Value >=Int 0
+    andBool (OldAllowance +Int Value) <=Int MAXVALUE
+ 
+// increase allowance: caller exists spender does not exist
+// TODO: this proof is not working; some issue with the prover that it chooses the wrong rule
+/*
+rule <k> increaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+      <allowances>
+       ...
+       <allowance>
+          <allower> Caller </allower>
+          <spenders> Spenders => Spenders (Spender |-> Value) </spenders>
+        </allowance>
+        ...
+      </allowances>
+  requires TokenOwner =/=Int 0
+    andBool Value >=Int 0
+    andBool notBool (Spender in keys(Spenders))
+  */
+
+// decrease allowance: caller and spender exist
+rule <k> decreaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+      <allowances>
+       ...
+       <allowance>
+          <allower> Caller </allower>
+          <spenders> ... (Spender |-> OldAllowance => Spender |-> OldAllowance -Int Value) ... </spenders>
+        </allowance>
+        ...
+      </allowances>
+  requires TokenOwner =/=Int 0
+    andBool Value >=Int 0
+    andBool (OldAllowance -Int Value) >=Int 0
+
+// decrease allowance: caller exists spender does not exist
+// INFO: K cannot finish this proof, though it cannot fail it either
+/*
+rule <k> decreaseAllowance(Spender:Int, _:Int, { caller : Caller } ) => throw ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+      <allowances>
+       ...
+       <allowance>
+          <allower> Caller </allower>
+          <spenders> Spenders </spenders>
+        </allowance>
+        ...
+      </allowances>
+  requires TokenOwner =/=Int 0
+    andBool notBool (Spender in keys(Spenders))
+ */
 endmodule

@@ -24,6 +24,8 @@ module ERC20-SYNTAX
   syntax BExp ::= Bool
                 | "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
                 | "approveAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                      [strict]
+                | "increaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
+                | "decreaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
                 | "transfer" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
                 | "transferFrom" "(" AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"        [strict]
                 | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
@@ -495,5 +497,69 @@ module ERC20
       orBool Account ==Int AssetProtectionManager
 
   rule <k> isPrivilegedRole(_) => false ...</k> [owise]
+
+  // increase allowance case: caller in outer map, update spender in inner map, success
+  rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <allowances>
+         ...
+         <allowance>
+           <allower> Caller </allower>
+           <spenders> ... (Spender |-> OldAllowance => Spender |-> OldAllowance +Int Value) ... </spenders>
+         </allowance>
+         ...
+       </allowances>
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
+      andBool (OldAllowance +Int Value) <=Int MAXVALUE
+      andBool OldAllowance >=Int 0
+
+  // increase allowance case: caller in outer map, spender not in inner map, success
+  rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <allowance>
+         <allower> Caller </allower>
+         <spenders> Spenders => Spenders (Spender |-> Value) </spenders>
+       </allowance>
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
+      andBool notBool (Spender in keys(Spenders))
+
+  // increase allowance case: caller not in outer map
+  rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <allowances> 
+         (.Bag =>
+           <allowance>
+             <allower> Caller </allower>
+             <spenders> (Spender |-> Value) </spenders>
+           </allowance>
+         )
+         ...
+       </allowances>
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
+ 
+  // increase allowance case: insufficient value, fail
+  rule <k> increaseAllowance(_, _, { caller : _ }) => throw ...</k> [owise]
+
+  // decrease allowance case: caller in outer map, update spender in inner map, success
+  rule <k> decreaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <allowances>
+         ...
+         <allowance>
+           <allower> Caller </allower>
+           <spenders> ... (Spender |-> OldAllowance => Spender |-> OldAllowance -Int Value) ... </spenders>
+         </allowance>
+         ...
+       </allowances>
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
+      andBool (OldAllowance -Int Value) >=Int 0
+      andBool OldAllowance >=Int 0
+ 
+  // decrease allowance: all other cases
+  rule <k> decreaseAllowance(_, _, { caller : _ }) => throw ...</k> [owise]
 
 endmodule
