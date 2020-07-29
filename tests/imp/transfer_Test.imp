@@ -1,11 +1,15 @@
 // owner: 7, supply manager: 5
 test.constructor(1, 2, 3, 4, 5, 6, { caller: 7 } );
 
+test.initAccount(1);
+test.initAccount(2);
+test.initAccount(3);
+test.initAccount(4);
+
 test.setKycPassed(1, {caller: 7});
 test.setKycPassed(2, {caller: 7});
 test.setKycPassed(3, {caller: 7});
 test.setKycPassed(4, {caller: 7});
-test.setKycPassed(5, {caller: 7});
 
 test.mint(1000, {caller: 7});
 

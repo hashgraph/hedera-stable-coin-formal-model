@@ -89,8 +89,25 @@ module ERC20
 // base
 
   rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => . ...</k>
-      <balances> Balances:Map => Balances [SupplyManagerArg <- TotalSupplyArg] </balances>
-      <kycpassed> KycPassed => KycPassed[Caller <- true][SupplyManagerArg <- true][AssetProtectionManagerArg <- true] </kycpassed>
+      <balances> Balances:Map => Balances [SupplyManagerArg <- TotalSupplyArg][Caller <- 0][AssetProtectionManagerArg <- 0] </balances>
+      <kycpassed> KycPassed:Map => KycPassed[Caller <- true][SupplyManagerArg <- true][AssetProtectionManagerArg <- true] </kycpassed>
+      <frozen> Frozen:Map => Frozen[Caller <- false][SupplyManagerArg <- false][AssetProtectionManagerArg <- false] </frozen>
+      <allowances> 
+         (.Bag =>
+            <allowance>
+              <allower> Caller </allower>
+              <spenders> (0 |-> 0) </spenders>
+            </allowance>
+            <allowance>
+              <allower> SupplyManagerArg </allower>
+              <spenders> (0 |-> 0) </spenders>
+            </allowance>
+            <allowance>
+              <allower> AssetProtectionManagerArg </allower>
+              <spenders> (0 |-> 0) </spenders>
+            </allowance>
+         )
+      </allowances>
       <tokenName> _ => TokenNameArg </tokenName>
       <tokenSymbol> _ => TokenSymbolArg </tokenSymbol>
       <tokenDecimal> _ => TokenDecimalArg </tokenDecimal>
@@ -106,7 +123,14 @@ module ERC20
       andBool AssetProtectionManagerArg =/=Int 0
 
   // constructor throws if it's called more than once or arguments are incorrect
-  rule <k> constructor(_, _, _, _, _, _, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> constructor(_, _, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => throw ...</k>
+      <tokenOwner> TokenOwner </tokenOwner>
+    requires notBool (TokenOwner ==Int 0
+      andBool TokenDecimalArg >=Int 0
+      andBool TotalSupplyArg >=Int 0
+      andBool Caller =/=Int 0
+      andBool SupplyManagerArg =/=Int 0
+      andBool AssetProtectionManagerArg =/=Int 0)
 
 // getters
 
@@ -150,10 +174,14 @@ module ERC20
       <frozen> Frozen => Frozen[Account <- false] </frozen>
       <kycpassed> KycPassed => KycPassed[Account <- false] </kycpassed>
       <tokenOwner> Owner </tokenOwner>
-      <allowance>
-         <allower> Account </allower>
-         <spenders> ... (0 |-> 0) ... </spenders>
-       </allowance>
+       <allowances>
+       Allowances => 
+         Allowances
+         <allowance>
+           <allower> Account </allower>
+           <spenders> (0 |-> 0) </spenders>
+         </allowance>
+      </allowances>
     requires Owner =/=Int 0
 
   rule <k> initAccount(_) => throw ...</k> [owise]
@@ -210,6 +238,17 @@ module ERC20
       OldValue >=Int Value
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
+
+  rule <k> burn(Value, {caller: Caller}) => throw ...</k>
+       <balances> ... (SupplyManager |-> OldValue) ... </balances>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+    requires
+      notBool (
+        OldValue >=Int Value
+        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+        andBool Value >=Int 0
+      )
 
 // compliant
 
@@ -436,15 +475,28 @@ module ERC20
 
 // unclassified
 
+  // case: Account already in map, success
   rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (.Map => Account |-> true) ... </kycpassed>
+       <kycpassed> ... (Account |-> false => Account |-> true) ... </kycpassed>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
   
+  // case: Account kyc already true or Caller incorrect, fail
+  /* This can replace the owise with the initAccount approach
+  rule <k> setKycPassed(Account, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <kycpassed> ... (Account |-> Passed) ... </kycpassed>
+    requires notBool (
+      TokenOwner =/=Int 0
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool notBool(Passed)
+    )
+  */ 
   rule <k> setKycPassed(_, { caller : _ } ) => throw ...</k> [owise]
-
+  
   // unset kycpassed
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>

@@ -312,8 +312,8 @@ makeThrowAsPrintTrue;
   rule test.burn(Value, {caller: Caller} ) =>
     burn(Value, {caller: Caller} )
 
-  syntax Stmt ::= "test.constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"  [macro]  
-  rule test.constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) =>
+  syntax Stmt ::= "test.constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" ";"  [macro]  
+  rule test.constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ); =>
     constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } )
 
   syntax Stmt ::= "test.checkTransferAllowed" "(" AExp ")"  [macro]  
@@ -335,6 +335,11 @@ makeThrowAsPrintTrue;
   syntax Stmt ::= "test.allowance" "(" AExp "," AExp ")" [macro]
   rule test.allowance(Allower, Spender) =>
     allowance(Allower, Spender)
+
+  syntax Stmt ::= "test.initAccount" "(" AExp ")" ";" [macro]
+  rule test.initAccount(Account); =>
+    initAccount(Account)
+
 
 endmodule
 
