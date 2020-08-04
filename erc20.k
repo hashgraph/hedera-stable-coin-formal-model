@@ -1,11 +1,3 @@
-/* Ahthor: Grigore Rosu
-   Date 2 December 2017
-
-   ERC20-K is a formalization of the informal ERC20 standard at
-   https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
-
-   See erc20.md for comments.  */
-
 module ERC20-SYNTAX
   imports DOMAINS-SYNTAX
 
@@ -19,10 +11,7 @@ module ERC20-SYNTAX
                 | "proposedOwner" "(" ")"
                 | "balanceOf" "(" AExp ")"                             [strict]
                 | "allowance" "(" AExp "," AExp ")"                    [strict]
-  
-  // TODO: some of these will have to move from BExp since the return type has been changed from bool to void
-  syntax BExp ::= Bool
-                | "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
+  syntax VExp ::= "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
                 | "approveAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                      [strict]
                 | "increaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
                 | "decreaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
@@ -34,17 +23,18 @@ module ERC20-SYNTAX
                 | "claimOwnership" "(""{" "caller" ":" AExp "}" ")"            [strict]
                 | "changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
                 | "changeAssetProtectionManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
-                | "isFrozen" "(" AExp ")"                                           [strict]
-                | "isKycPassed" "(" AExp ")"                                        [strict]
                 | "setKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"         [strict]
                 | "unsetKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"       [strict]
-                | "checkTransferAllowed" "(" AExp ")"                               [strict]
                 | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"               [strict]
                 | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
                 | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                 [strict]
-                | "isPrivilegedRole" "(" AExp ")"                                   [strict]
                 | "initAccount" "(" AExp ")"                                        [strict]
                 | "throw"
+  syntax BExp ::= Bool
+                | "isFrozen" "(" AExp ")"                                           [strict]
+                | "isKycPassed" "(" AExp ")"                                        [strict] 
+                | "checkTransferAllowed" "(" AExp ")"                               [strict]
+                | "isPrivilegedRole" "(" AExp ")"                                   [strict]
 endmodule
 
 module ERC20
@@ -82,9 +72,6 @@ module ERC20
 
   syntax Int ::= "MAXVALUE"  [function]
   rule MAXVALUE => 2 ^Int 256 -Int 1
-
-  // propagates exceptions
-  rule <k> throw ~> _ => throw </k>
 
 // base
 
@@ -135,44 +122,85 @@ module ERC20
 // getters
 
   rule <k> totalSupply() => Total ...</k>
-      <totalSupply> Total </totalSupply>
+       <totalSupply> Total </totalSupply>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> totalSupply() => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> balanceOf(Id) => (Balances[Id] orDefault 0) ...</k>
-      <balances> Balances:Map  </balances>
+       <balances> Balances:Map </balances>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> balanceOf(_) => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> owner() => TokenOwner ...</k>
-      <tokenOwner> TokenOwner </tokenOwner>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> owner() => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> supplyManager() => SupplyManager ...</k>
-      <supplyManager> SupplyManager </supplyManager>
+       <supplyManager> SupplyManager </supplyManager>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> supplyManager() => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> assetProtectionManager() => AssetProtectionManager ...</k>
-      <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> assetProtectionManager() => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> proposedOwner() => ProposedOwner ...</k>
-      <proposedOwner> ProposedOwner </proposedOwner>
+       <proposedOwner> ProposedOwner </proposedOwner>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> proposedOwner() => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> isFrozen(Id) => (Frozen[Id] orDefault false) ...</k>
-      <frozen> Frozen:Map  </frozen>
+       <frozen> Frozen:Map </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> isFrozen(_) => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> isKycPassed(Id) => (KycPassed[Id] orDefault false) ...</k>
-      <kycpassed> KycPassed:Map  </kycpassed>
+       <kycpassed> KycPassed:Map </kycpassed>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  rule <k> isKycPassed(_) => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
 
   rule <k> allowance(Allower, Spender) => Value ... </k>
        <allowance>
          <allower> Allower </allower>
          <spenders> ... (Spender |-> Value) ... </spenders>
        </allowance>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
   
-  rule <k> allowance(_, _) => 0 ... </k>
-       [owise]
+  rule <k> allowance(_, _) => throw ... </k>
+       <tokenOwner> 0 </tokenOwner>
 
 // helpers
 
   rule <k> initAccount(Account) => . ...</k>
-      <balances> Balances:Map => Balances[Account <- 0] </balances>
-      <frozen> Frozen => Frozen[Account <- false] </frozen>
-      <kycpassed> KycPassed => KycPassed[Account <- false] </kycpassed>
+      <balances> ... (.Map => Account |-> 0) ... </balances>
+      <frozen> ... (.Map => Account |-> false) ... </frozen>
+      <kycpassed> ... (.Map => Account |-> false) ... </kycpassed>
       <tokenOwner> Owner </tokenOwner>
        <allowances>
        Allowances => 
@@ -184,7 +212,9 @@ module ERC20
       </allowances>
     requires Owner =/=Int 0
 
-  rule <k> initAccount(_) => throw ...</k> [owise]
+    // for completness
+    rule <k> initAccount(_) => throw ...</k>
+      <tokenOwner> 0 </tokenOwner>
 
 // mintable
 
@@ -194,94 +224,56 @@ module ERC20
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply => Supply +Int Value </totalSupply>
-    requires
-      Owner =/=Int 0
-        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
-        andBool Value >=Int 0
-        andBool Supply +Int Value <=Int MAXVALUE
-
-  // NOTE: Kyc or a related function should have a side-effect of initiating balance. Might save a lot of headaches in mint/transfer.
-  //       Think we could get rid of this case if so.
-  // I could not get K to let me combine this and the above function. The following expression wouldn't parse...
-  // Balances [Caller <- (Value +Int (Balances[Caller] orDefault 0))]
-  rule <k> mint(Value, { caller : Caller } ) => . ...</k>
-       <balances> Balances:Map => Balances [SupplyManager <- Value] </balances>
-       <tokenOwner> Owner </tokenOwner>
-       <supplyManager> SupplyManager </supplyManager>
-       <totalSupply> Supply => Supply +Int Value </totalSupply>
-    requires
-      Owner =/=Int 0
-        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
-        andBool Value >=Int 0
-        andBool Supply +Int Value <=Int MAXVALUE
-        andBool notBool (SupplyManager in keys(Balances))
+    requires Owner =/=Int 0
+      andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
+      andBool Value >=Int 0
+      andBool Supply +Int Value <=Int MAXVALUE
+      andBool Balance <=Int Supply
 
   rule <k> mint(Value, { caller : Caller } ) => throw ...</k>
+       <balances> ... (SupplyManager |-> Balance) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
        <totalSupply> Supply </totalSupply>
-    requires
-      notBool (
-        Owner =/=Int 0
-        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
-        andBool Value >=Int 0
-        andBool Supply +Int Value <=Int MAXVALUE
-      )
+    requires Owner ==Int 0
+      orBool (Caller =/=Int SupplyManager andBool Caller =/=Int Owner)
+      orBool Value <Int 0
+      orBool Supply +Int Value >Int MAXVALUE
+      orBool Balance >Int Supply
 
 // burnable
-  rule <k> burn(Value, {caller: Caller}) => . ...</k>
-       <totalSupply> Supply => Supply -Int Value </totalSupply>
-       <balances> ... (SupplyManager |-> OldValue => SupplyManager |-> OldValue -Int Value) ... </balances>
+  rule <k> burn(Value, { caller: Caller } ) => . ...</k>
+       <balances> ... (SupplyManager |-> Balance => SupplyManager |-> Balance -Int Value) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
-    requires
-      OldValue >=Int Value
+       <totalSupply> Supply => Supply -Int Value </totalSupply>
+    requires Owner =/=Int 0
+      andBool Balance >=Int Value
       andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
       andBool Value >=Int 0
+      andBool Balance <=Int Supply
 
   rule <k> burn(Value, {caller: Caller}) => throw ...</k>
-       <balances> ... (SupplyManager |-> OldValue) ... </balances>
+       <balances> ... (SupplyManager |-> Balance) ... </balances>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
-    requires
-      notBool (
-        OldValue >=Int Value
-        andBool (Caller ==Int SupplyManager orBool Caller ==Int Owner)
-        andBool Value >=Int 0
-      )
+       <totalSupply> Supply </totalSupply>
+    requires Owner ==Int 0
+      orBool Balance <Int Value
+      orBool (Caller =/=Int SupplyManager andBool Caller =/=Int Owner)
+      orBool Value <Int 0
+      orBool Balance >Int Supply
 
 // compliant
 
-/* // jgorzny: isn't it true that if kyc is set, then account is in frozen?
-  // allowed if passed kyc and frozen is unset
-  rule <k> checkTransferAllowed(Account) => true ...</k>
-      <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
-      <frozen> Frozen:Map </frozen>
-      <tokenOwner> TokenOwner </tokenOwner>
-    requires TokenOwner =/=Int 0
-      andBool KycPassed
-      andBool (notBool Account in keys(Frozen))
-*/
-
   // allowed if passed kyc and frozen is set to false
   rule <k> checkTransferAllowed(Account) => true ...</k>
-      <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
-      <frozen> ... (Account |-> Frozen) ... </frozen>
+      <kycpassed> ... (Account |-> true) ... </kycpassed>
+      <frozen> ... (Account |-> false) ... </frozen>
       <tokenOwner> TokenOwner </tokenOwner>
     requires TokenOwner =/=Int 0
-      andBool KycPassed
-      andBool (notBool Frozen)
 
   // disallowed if passed kyc is unset or account is frozen
-  rule <k> checkTransferAllowed(Account) => false ...</k>
-      <kycpassed> KycPassed:Map </kycpassed>
-      <frozen> ... (Account |-> Frozen) ... </frozen>
-      <tokenOwner> TokenOwner </tokenOwner>
-    requires TokenOwner ==Int 0
-      orBool (notBool Account in keys(KycPassed))
-      orBool Frozen
-
-  // disallowed if passed kyc is set to false or account is frozen
   rule <k> checkTransferAllowed(Account) => false ...</k>
       <kycpassed> ... (Account |-> KycPassed) ... </kycpassed>
       <frozen> ... (Account |-> Frozen) ... </frozen>
@@ -291,9 +283,8 @@ module ERC20
       orBool Frozen
 
 // delegable
-  // Note: In the high-level spec, approveAllowance() has no restrictions regarding checkTransferAllowed()
 
-  // approve case: caller in outer map, update spender in inner map, success
+  // approve case: success
   rule <k> approveAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
        <allowances> 
          ...
@@ -303,229 +294,267 @@ module ERC20
          </allowance>
          ...
        </allowances>
-    requires Value >=Int 0
+       <kycpassed> ... (Caller |-> true)(Spender |-> true) ... </kycpassed>
+       <frozen> ... (Caller |-> false)(Spender |-> false) ... </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
 
-  // approve case: caller in outer map, spender not in inner map, success
-  rule <k> approveAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
-       <allowance>
-         <allower> Caller </allower>
-         <spenders> Spenders => Spenders (Spender |-> Value) </spenders>
-       </allowance>
-
-  // approve case: insufficient value, fail
-  rule <k> approveAllowance(_, Value, { caller : _ }) => throw ...</k>
-    requires Value <Int 0
-
-  // approve case: caller not in outer map
-  rule <k> approveAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
-       <allowances> 
-         (.Bag =>
-           <allowance>
-             <allower> Caller </allower>
-             <spenders> (Spender |-> Value) </spenders>
-           </allowance>
-         )
+  // approve case: failure
+  rule <k> approveAllowance(Spender, Value, { caller : Caller } ) => throw ...</k>
+       <allowances>
+         ...
+         <allowance>
+           <allower> Caller </allower>
+           <spenders> ... (Spender |-> _) ... </spenders>
+         </allowance>
          ...
        </allowances>
-    [owise]
+       <kycpassed> ... (Caller |-> CallerKyc)(Spender |-> SpenderKyc) ... </kycpassed>
+       <frozen> ... (Caller |-> CallerFrozen)(Spender |-> SpenderFrozen) ... </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool Value <Int 0
+      orBool (notBool CallerKyc)
+      orBool (notBool SpenderKyc)
+      orBool CallerFrozen
+      orBool SpenderFrozen
 
 // transferable
-  // Note: I do not check for (TokenOwner =/= 0) since (Kyc == true) => (TokenOwner =/= 0)
  
   // transfer case: To =/= From, success 
   rule <k> transfer(To, Value, { caller : From } ) => . ...</k>
-      // Note: this map update will not work correctly if From == To (it will effectively mint tokens)
-       <balances> Balances:Map => Balances[From <- ({Balances[From]}:>Int -Int Value)][To <- ({Balances[To]}:>Int +Int Value)] </balances>  
+       <tokenOwner> TokenOwner </tokenOwner>
+       <balances> ... (From |-> BalanceFrom => From |-> BalanceFrom -Int Value)
+                      (To |-> BalanceTo => To |-> BalanceTo +Int Value) ... </balances>
        <kycpassed> ... (To |-> true) (From |-> true) ... </kycpassed>
        <frozen> ... (To |-> false) (From |-> false) ... </frozen>
-    requires To =/=Int From
+    requires TokenOwner =/=Int 0
+      andBool To =/=Int From
       andBool Value >=Int 0
-      andBool {Balances[From]}:>Int >=Int Value
+      andBool BalanceFrom >=Int Value
 
   // transfer case: To == From, success 
   rule <k> transfer(Account, Value, { caller : Account } ) => . ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
        <balances> ... (Account |-> Balance) ... </balances>  
        <kycpassed> ... (Account |-> true) ... </kycpassed>
        <frozen> ... (Account |-> false) ... </frozen>
-    requires Value >=Int 0
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
       andBool Balance >=Int Value
 
-  // TODO: I think the below transfer() cases are likely incomplete; 
-  //       might be able to remove all failing cases in favor of an [owise] as in transferFrom()
-  // Maybe: rule <k> transfer(To, Value, { caller : From } ) => throw ...</k> [owise]
-
-  // transfer case: To=/=From, To and From in maps, basic condition does not hold, fail
+  // transfer case: basic condition does not hold, fail
   rule <k> transfer(To, Value, { caller : From } ) => throw ...</k>
-       <balances> ... (From |-> Balance) ... </balances>  
+       <balances> ... (From |-> Balance)(To |-> _) ... </balances>  
        <kycpassed> ... (To |-> ToKyc) (From |-> FromKyc) ... </kycpassed>
        <frozen> ... (To |-> ToFrozen) (From |-> FromFrozen) ... </frozen>
        <tokenOwner> TokenOwner </tokenOwner>
-    requires notBool (To =/=Int From
-      andBool Value >=Int 0
-      andBool Balance >=Int Value
-      andBool TokenOwner =/=Int 0
-      andBool ToKyc
-      andBool FromKyc
-      andBool notBool (ToFrozen)
-      andBool notBool (FromFrozen)
-    )
-
-  // transfer case: To=/=From, To or From not in a map, fail
-  rule <k> transfer(To, _, { caller : From } ) => throw ...</k>
-       <balances> Balances </balances>  
-       <kycpassed> KycPassed </kycpassed>
-       <frozen> Frozen </frozen>
-    requires notBool (
-      To in keys(Balances)
-      andBool From in keys(Balances)
-      andBool To in keys(KycPassed)
-      andBool From in keys(KycPassed)
-      andBool To in keys(Frozen)
-      andBool From in keys(Frozen)
-    )
-
-  // transfer case: To == From, basic condition does not hold, fail
-    rule <k> transfer(Account, Value, { caller : Account } ) => throw ...</k>
-       <balances> ... (Account |-> Balance) ... </balances>  
-       <kycpassed> ... (Account |-> AccountKyc) ... </kycpassed>
-       <frozen> ... (Account |-> AccountFrozen) ... </frozen>
-       <tokenOwner> TokenOwner </tokenOwner>
-    requires notBool ( Value >=Int 0 
-      andBool Balance >=Int Value
-      andBool TokenOwner =/=Int 0
-      andBool AccountKyc
-      andBool notBool (AccountFrozen)
-    )
-
-  // transfer case: To == From, Account not in a map, fail
-  rule <k> transfer(Account, _, { caller : Account } ) => throw ...</k>
-       <balances> Balances </balances>  
-       <kycpassed> KycPassed </kycpassed>
-       <frozen> Frozen </frozen>
-    requires notBool (
-      Account in keys(Balances)
-      andBool Account in keys(KycPassed)
-      andBool Account in keys(Frozen)
-    )
+    requires TokenOwner ==Int 0
+      orBool Value <Int 0
+      orBool Balance <Int Value
+      orBool (notBool ToKyc)
+      orBool (notBool FromKyc)
+      orBool ToFrozen
+      orBool FromFrozen
 
   // transferFrom case: To =/= From, success
   rule <k> transferFrom(From, To, Value, {caller: Caller}) => . ... </k>
+       <tokenOwner> TokenOwner </tokenOwner>
        <allowance>
          <allower> From </allower>
-         <spenders> ... (Caller |-> (Allowance => (Allowance -Int Value))) ... </spenders>
+         <spenders> ... (Caller |-> Allowance => Caller |-> Allowance -Int Value) ... </spenders>
        </allowance>
-       <balances> Balances:Map => Balances[From <- ({Balances[From]}:>Int -Int Value)][To <- ({Balances[To]}:>Int +Int Value)] </balances>  
+       <balances> ... (From |-> BalanceFrom => From |-> BalanceFrom -Int Value)
+                      (To |-> BalanceTo => To |-> BalanceTo +Int Value) ... </balances>
        <kycpassed> ... (To |-> true) (From |-> true) (Caller |-> true) ... </kycpassed>
        <frozen> ... (To |-> false) (From |-> false) (Caller |-> false) ... </frozen>
-    requires To =/=Int From
+    requires TokenOwner =/=Int 0
+      andBool To =/=Int From
       andBool Value >=Int 0
-      andBool {Balances[From]}:>Int >=Int Value
+      andBool BalanceFrom >=Int Value
       andBool Allowance >=Int Value
 
   // transferFrom case: To == From, success
   rule <k> transferFrom(From, From, Value, {caller: Caller}) => . ... </k>
+       <tokenOwner> TokenOwner </tokenOwner>
        <allowance>
          <allower> From </allower>
          // still subtracting from allowance even though no funds actually moved
-         <spenders> ... (Caller |-> (Allowance => (Allowance -Int Value))) ... </spenders>
+         <spenders> ... (Caller |-> Allowance => Caller |-> Allowance -Int Value) ... </spenders>
        </allowance>
-       <balances> Balances:Map </balances>  
+       <balances> ... (From |-> Balance) ... </balances>  
        <kycpassed> ... (From |-> true) (Caller |-> true) ... </kycpassed>
        <frozen> ... (From |-> false) (Caller |-> false) ... </frozen>
-    requires Value >=Int 0
-      andBool {Balances[From]}:>Int >=Int Value
+    requires TokenOwner =/=Int 0
+      andBool Value >=Int 0
+      andBool Balance >=Int Value
       andBool Allowance >=Int Value
 
   // transferFrom case: fail otherwise
-  rule <k> transferFrom(_, _, _, {caller: _}) => throw ... </k> [owise]
+  rule <k> transferFrom(From, From, Value, {caller: Caller}) => throw ... </k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <allowance>
+         <allower> From </allower>
+         <spenders> ... (Caller |-> Allowance) ... </spenders>
+       </allowance>
+       <balances> ... (From |-> Balance) ... </balances>  
+       <kycpassed> ... (To |-> ToKyc) (From |-> FromKyc) (Caller |-> CallerKyc) ... </kycpassed>
+       <frozen> ... (To |-> ToFrozen) (From |-> FromFrozen) (Caller |-> CallerFrozen) ... </frozen>
+    requires TokenOwner ==Int 0
+      orBool Value <Int 0
+      orBool Balance <Int Value
+      orBool Allowance <Int Value
+      orBool (notBool ToKyc)
+      orBool (notBool FromKyc)
+      orBool (notBool CallerKyc)
+      orBool ToFrozen
+      orBool FromFrozen
+      orBool CallerFrozen
 
 // privileged roles
 
   rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
        <tokenOwner> Caller </tokenOwner>
        <proposedOwner> _ => ProposedOwner </proposedOwner>
-    requires Caller =/=Int 0
-      andBool ProposedOwner =/=Int 0
+       <kycpassed> ... (ProposedOwner |-> true) ... </kycpassed>
+       <frozen> ... (ProposedOwner |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool ProposedOwner =/=Int 0
 
-  rule <k> proposeOwner(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => throw ...</k>
+       <kycpassed> ... (ProposedOwner |-> KycPassed) ... </kycpassed>
+       <frozen> ... (ProposedOwner |-> Frozen) ... </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool TokenOwner =/=Int Caller
+      orBool ProposedOwner ==Int 0
+      orBool (notBool KycPassed)
+      orBool Frozen
 
   rule <k> claimOwnership( { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner => Caller </tokenOwner>
        <proposedOwner> Caller => 0 </proposedOwner>
-    requires Caller =/=Int 0
-      andBool TokenOwner =/=Int 0
+       <kycpassed> ... (Caller |-> true) ... </kycpassed>
+       <frozen> ... (Caller |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool TokenOwner =/=Int 0
 
-  rule <k> claimOwnership( { caller : _ } ) => throw ...</k> [owise]
+  rule <k> claimOwnership( { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <proposedOwner> ProposedOwner </proposedOwner>
+       <kycpassed> ... (Caller |-> KycPassed) ... </kycpassed>
+       <frozen> ... (Caller |-> Frozen) ... </frozen>
+    requires Caller ==Int 0
+      orBool TokenOwner ==Int 0
+      orBool Caller =/=Int ProposedOwner
+      orBool (notBool KycPassed)
+      orBool Frozen
 
   rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => . ...</k>
        <tokenOwner> Caller </tokenOwner>
        <supplyManager> _ => SupplyManager </supplyManager>
-    requires Caller =/=Int 0
-      andBool SupplyManager =/=Int 0
+       <kycpassed> ... (SupplyManager |-> true) ... </kycpassed>
+       <frozen> ... (SupplyManager |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool SupplyManager =/=Int 0
 
-  rule <k> changeSupplyManager(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => throw ...</k>
+       <kycpassed> ... (SupplyManager |-> KycPassed) ... </kycpassed>
+       <frozen> ... (SupplyManager |-> Frozen) ... </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool SupplyManager ==Int 0
+      orBool Caller =/=Int TokenOwner 
+      orBool (notBool KycPassed)
+      orBool Frozen
 
   rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => . ...</k>
        <tokenOwner> Caller </tokenOwner>
        <assetProtectionManager> _ => AssetProtectionManager </assetProtectionManager>
-    requires Caller =/=Int 0
-      andBool AssetProtectionManager =/=Int 0
+       <kycpassed> ... (AssetProtectionManager |-> true) ... </kycpassed>
+       <frozen> ... (AssetProtectionManager |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool AssetProtectionManager =/=Int 0
 
-  rule <k> changeAssetProtectionManager(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => throw ...</k>
+       <kycpassed> ... (AssetProtectionManager |-> KycPassed) ... </kycpassed>
+       <frozen> ... (AssetProtectionManager |-> Frozen) ... </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool AssetProtectionManager ==Int 0
+      orBool Caller =/=Int TokenOwner 
+      orBool (notBool KycPassed)
+      orBool Frozen
 
 // unclassified
 
-  // case: Account already in map, success
   rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (Account |-> false => Account |-> true) ... </kycpassed>
+       <kycpassed> ... (Account |-> _ => Account |-> true) ... </kycpassed>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
   
-  // case: Account kyc already true or Caller incorrect, fail
-  /* This can replace the owise with the initAccount approach
-  rule <k> setKycPassed(Account, { caller : Caller } ) => throw ...</k>
+  rule <k> setKycPassed(_, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (Account |-> Passed) ... </kycpassed>
-    requires notBool (
-      TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-      andBool notBool(Passed)
-    )
-  */ 
-  rule <k> setKycPassed(_, { caller : _ } ) => throw ...</k> [owise]
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
   
   // unset kycpassed
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (.Map => Account |-> false) ... </kycpassed>
+       <supplyManager> SupplyManager </supplyManager>
+       <kycpassed> ... (Account |-> _ => Account |-> false) ... </kycpassed>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool Account =/=Int TokenOwner
+      andBool Account =/=Int SupplyManager
+      andBool Account =/=Int AssetProtectionManager
 
-  rule <k> unsetKycPassed(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> unsetKycPassed(Account, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <supplyManager> SupplyManager </supplyManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+      orBool Account ==Int TokenOwner
+      orBool Account ==Int SupplyManager
+      orBool Account ==Int AssetProtectionManager
 
   // freeze
   rule <k> freeze(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (.Map => Account |-> true) ... </frozen>
+       <supplyManager> SupplyManager </supplyManager>
+       <frozen> ... (Account |-> _ => Account |-> true) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool Account =/=Int TokenOwner
+      andBool Account =/=Int SupplyManager
+      andBool Account =/=Int AssetProtectionManager
 
-  rule <k> freeze(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> freeze(Account, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <supplyManager> SupplyManager </supplyManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+      orBool Account ==Int TokenOwner
+      orBool Account ==Int SupplyManager
+      orBool Account ==Int AssetProtectionManager
 
   // unfreeze
   rule <k> unfreeze(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (.Map => Account |-> false) ... </frozen>
+       <frozen> ... (Account |-> _ => Account |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
-  rule <k> unfreeze(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> unfreeze(_, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
 
   // wipe
   rule <k> wipe(Account, { caller : Caller } ) => . ...</k>
@@ -537,7 +566,14 @@ module ERC20
     requires TokenOwner =/=Int 0
       andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
 
-  rule <k> wipe(_, { caller : _ } ) => throw ...</k> [owise]
+  rule <k> wipe(Account, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <frozen> ... (Account |-> IsFrozen) ... </frozen>
+       <balances> ... (Account |-> _) ... </balances>
+    requires TokenOwner ==Int 0
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+      orBool (notBool IsFrozen)
 
   // isPrivilegedRole
   rule <k> isPrivilegedRole(Account) => true ...</k>
@@ -548,9 +584,15 @@ module ERC20
       orBool Account ==Int SupplyManager
       orBool Account ==Int AssetProtectionManager
 
-  rule <k> isPrivilegedRole(_) => false ...</k> [owise]
+  rule <k> isPrivilegedRole(Account) => false ...</k>
+       <tokenOwner> Owner </tokenOwner>
+       <supplyManager> SupplyManager </supplyManager>
+       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+    requires Account =/=Int Owner
+      andBool Account =/=Int SupplyManager
+      andBool Account =/=Int AssetProtectionManager
 
-  // increase allowance case: caller in outer map, update spender in inner map, success
+  // increase allowance case: success
   rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <allowances>
@@ -561,41 +603,36 @@ module ERC20
          </allowance>
          ...
        </allowances>
+       <kycpassed> ... (Caller |-> true)(Spender |-> true) ... </kycpassed>
+       <frozen> ... (Caller |-> false)(Spender |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool Value >=Int 0
       andBool (OldAllowance +Int Value) <=Int MAXVALUE
       andBool OldAllowance >=Int 0
 
-  // increase allowance case: caller in outer map, spender not in inner map, success
-  rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
+  // increase allowance case: exception
+  rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <allowance>
-         <allower> Caller </allower>
-         <spenders> Spenders => Spenders (Spender |-> Value) </spenders>
-       </allowance>
-    requires TokenOwner =/=Int 0
-      andBool Value >=Int 0
-      andBool notBool (Spender in keys(Spenders))
-
-  // increase allowance case: caller not in outer map
-  rule <k> increaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
-       <tokenOwner> TokenOwner </tokenOwner>
-       <allowances> 
-         (.Bag =>
-           <allowance>
-             <allower> Caller </allower>
-             <spenders> (Spender |-> Value) </spenders>
-           </allowance>
-         )
+       <allowances>
+         ...
+         <allowance>
+           <allower> Caller </allower>
+           <spenders> ... (Spender |-> OldAllowance) ... </spenders>
+         </allowance>
          ...
        </allowances>
-    requires TokenOwner =/=Int 0
-      andBool Value >=Int 0
- 
-  // increase allowance case: insufficient value, fail
-  rule <k> increaseAllowance(_, _, { caller : _ }) => throw ...</k> [owise]
+       <kycpassed> ... (Caller |-> CallerKyc)(Spender |-> SpenderKyc) ... </kycpassed>
+       <frozen> ... (Caller |-> CallerFrozen)(Spender |-> SpenderFrozen) ... </frozen>
+    requires TokenOwner ==Int 0
+      orBool Value <Int 0
+      orBool (OldAllowance +Int Value) >Int MAXVALUE
+      orBool OldAllowance <Int 0
+      orBool (notBool CallerKyc)
+      orBool (notBool SpenderKyc)
+      orBool CallerFrozen
+      orBool SpenderFrozen
 
-  // decrease allowance case: caller in outer map, update spender in inner map, success
+  // decrease allowance case: success
   rule <k> decreaseAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <allowances>
@@ -606,12 +643,33 @@ module ERC20
          </allowance>
          ...
        </allowances>
+       <kycpassed> ... (Caller |-> true)(Spender |-> true) ... </kycpassed>
+       <frozen> ... (Caller |-> false)(Spender |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
       andBool Value >=Int 0
       andBool (OldAllowance -Int Value) >=Int 0
       andBool OldAllowance >=Int 0
  
-  // decrease allowance: all other cases
-  rule <k> decreaseAllowance(_, _, { caller : _ }) => throw ...</k> [owise]
+  // decrease allowance: exception
+  rule <k> decreaseAllowance(Spender, Value, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <allowances>
+         ...
+         <allowance>
+           <allower> Caller </allower>
+           <spenders> ... (Spender |-> OldAllowance) ... </spenders>
+         </allowance>
+         ...
+       </allowances>
+       <kycpassed> ... (Caller |-> CallerKyc)(Spender |-> SpenderKyc) ... </kycpassed>
+       <frozen> ... (Caller |-> CallerFrozen)(Spender |-> SpenderFrozen) ... </frozen>
+    requires TokenOwner ==Int 0
+      orBool Value <Int 0
+      orBool (OldAllowance -Int Value) <Int 0
+      orBool OldAllowance <Int 0
+      orBool (notBool CallerKyc)
+      orBool (notBool SpenderKyc)
+      orBool CallerFrozen
+      orBool SpenderFrozen
 
 endmodule
