@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module ROLES-SPEC
-  imports ERC20
+  imports HCS
 
 // owner can propose a new owner
 rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>

@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module DELEGABLE-SPEC
-imports ERC20
+imports HCS
 
 // increase allowance: caller and spender exist
 rule <k> approveAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...</k>

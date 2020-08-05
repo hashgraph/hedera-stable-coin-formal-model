@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module UNCLASSIFIED-SPEC
-imports ERC20
+imports HCS
 
 // correctness of `setKycPassed` - changing from false to true
 rule <k>setKycPassed(Target:Int, {caller: Caller}) => . ...</k>

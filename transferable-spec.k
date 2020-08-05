@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module TRANSFERABLE-SPEC
-imports ERC20
+imports HCS
 
 rule <k> transfer(To, Value, { caller : From } ) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>

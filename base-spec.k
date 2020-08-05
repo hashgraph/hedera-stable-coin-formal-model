@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module BASE-SPEC
-imports ERC20
+imports HCS
 
 // constructor should initialize all fields correctly
 rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) =>  . ...</k>

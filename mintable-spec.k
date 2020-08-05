@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module MINTABLE-SPEC
-imports ERC20
+imports HCS
 
 rule <k> mint(Value, { caller : Caller } ) => . ...</k>
      <balances> ... (SupplyManager |-> Balance => SupplyManager |-> Balance +Int Value) ...</balances>

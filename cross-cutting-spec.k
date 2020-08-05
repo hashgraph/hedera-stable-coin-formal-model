@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module CROSS-CUTTING-SPEC
-imports ERC20
+imports HCS
 
 // A mint followed by a burn will result in no changes to the totalSupply (disallowing overflow)
 rule <k> mint(Value, {caller: Caller})

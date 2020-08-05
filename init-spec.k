@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module INIT-SPEC
-  imports ERC20
+  imports HCS
 
   rule <k> initAccount(Account) => . ...</k>
       <balances> ... (.Map => Account |-> 0) ... </balances>

@@ -1,7 +1,7 @@
-requires "erc20.k"
+requires "hcs.k"
 
 module BURNABLE-SPEC
-imports ERC20
+imports HCS
  
 rule <k> burn(Value, { caller : Caller } ) => . ...</k>
      <balances> ... (SupplyManager |-> Balance => SupplyManager |-> Balance -Int Value) ...</balances>

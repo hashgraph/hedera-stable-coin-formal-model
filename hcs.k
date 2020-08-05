@@ -1,47 +1,47 @@
-module ERC20-SYNTAX
+module HCS-SYNTAX
   imports DOMAINS-SYNTAX
 
   syntax Value   ::= Int  // this can be changed
   syntax Address ::= Int  // this can be changed
   syntax AExp ::= Value | Address
-                | "totalSupply" "(" ")"
-                | "owner" "(" ")"
-                | "supplyManager" "(" ")"
-                | "assetProtectionManager" "(" ")"
-                | "proposedOwner" "(" ")"
-                | "balanceOf" "(" AExp ")"                             [strict]
-                | "allowance" "(" AExp "," AExp ")"                    [strict]
+                | "totalSupply" "(" ")"                                                                                 [strict]
+                | "owner" "(" ")"                                                                                       [strict]
+                | "supplyManager" "(" ")"                                                                               [strict]
+                | "assetProtectionManager" "(" ")"                                                                      [strict]
+                | "proposedOwner" "(" ")"                                                                               [strict]
+                | "balanceOf" "(" AExp ")"                                                                              [strict]
+                | "allowance" "(" AExp "," AExp ")"                                                                     [strict]
   syntax VExp ::= "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
-                | "approveAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                      [strict]
-                | "increaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
-                | "decreaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
-                | "transfer" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                     [strict]
-                | "transferFrom" "(" AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"        [strict]
-                | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
-                | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
-                | "proposeOwner" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
-                | "claimOwnership" "(""{" "caller" ":" AExp "}" ")"            [strict]
-                | "changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
-                | "changeAssetProtectionManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"    [strict]
-                | "setKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"         [strict]
-                | "unsetKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"       [strict]
-                | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"               [strict]
-                | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"             [strict]
-                | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                 [strict]
-                | "initAccount" "(" AExp ")"                                        [strict]
+                | "approveAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                                [strict]
+                | "increaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                               [strict]
+                | "decreaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                               [strict]
+                | "transfer" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                                        [strict]
+                | "transferFrom" "(" AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                           [strict]
+                | "mint" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                     [strict]
+                | "burn" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                     [strict]
+                | "proposeOwner" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                             [strict]
+                | "claimOwnership" "(""{" "caller" ":" AExp "}" ")"                                                     [strict]
+                | "changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                      [strict]
+                | "changeAssetProtectionManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"                             [strict]
+                | "setKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                             [strict]
+                | "unsetKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                           [strict]
+                | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                   [strict]
+                | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                 [strict]
+                | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                     [strict]
+                | "initAccount" "(" AExp ")"                                                                            [strict]
                 | "throw"
   syntax BExp ::= Bool
-                | "isFrozen" "(" AExp ")"                                           [strict]
-                | "isKycPassed" "(" AExp ")"                                        [strict] 
-                | "checkTransferAllowed" "(" AExp ")"                               [strict]
-                | "isPrivilegedRole" "(" AExp ")"                                   [strict]
+                | "isFrozen" "(" AExp ")"                                                                               [strict]
+                | "isKycPassed" "(" AExp ")"                                                                            [strict]
+                | "checkTransferAllowed" "(" AExp ")"                                                                   [strict]
+                | "isPrivilegedRole" "(" AExp ")"                                                                       [strict]
 endmodule
 
-module ERC20
-  imports ERC20-SYNTAX
+module HCS
+  imports HCS-SYNTAX
   imports DOMAINS
 
-  configuration <ERC20 unused="true">
+  configuration <HCS unused="true">
                   <k> $PGM:K </k>
                   <balances>
                     .Map
@@ -66,7 +66,7 @@ module ERC20
                   <supplyManager> 0 </supplyManager>
                   <assetProtectionManager> 0 </assetProtectionManager>
                   <proposedOwner> 0 </proposedOwner>
-                </ERC20>
+                </HCS>
 
   syntax KResult ::= Int | Bool | String
 
