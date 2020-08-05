@@ -81,6 +81,22 @@ rule <k> unfreeze(_:Int, {caller: Caller}) => throw ...</k>
   requires TokenOwner ==Int 0
     orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
 
+// correctness of `freeze`, `unfreeze`, and then `freeze` again
+rule <k> freeze(Account:Int, {caller: Caller})
+         ~>
+         unfreeze(Account:Int, {caller: Caller})
+         ~>
+         freeze(Account:Int, {caller: Caller}) => . ...</k>
+     <tokenOwner> TokenOwner </tokenOwner>
+     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <supplyManager> SupplyManager </supplyManager>
+     <frozen> ... (Account |-> _ => Account |-> true) ... </frozen>
+  requires TokenOwner =/=Int 0
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+    andBool Account =/=Int TokenOwner
+    andBool Account =/=Int SupplyManager
+    andBool Account =/=Int AssetProtectionManager
+
 // correctness of `wipe` - update
 rule <k> freeze(Account:Int, {caller: Caller})
          ~>
@@ -124,7 +140,7 @@ rule <k> isPrivilegedRole(Account:Int) => false ...</k>
   requires notBool(Account ==Int TokenOwner
     orBool Account ==Int AssetProtectionManager orBool Account ==Int SupplyManager)
 
-// increase allowance: caller and spender exist
+// increase allowance
 rule <k> increaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
      <allowances>
@@ -242,5 +258,49 @@ rule <k> decreaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => thro
     orBool (notBool SpenderKyc)
     orBool CallerFrozen
     orBool SpenderFrozen
- 
+
+// increase and then decrease allowance
+rule <k> increaseAllowance(Spender:Int, Value1:Int, { caller : Caller } )
+         ~>
+         decreaseAllowance(Spender:Int, Value2:Int, { caller : Caller } ) => . ...</k>
+     <tokenOwner> TokenOwner </tokenOwner>
+     <allowances>
+      ...
+      <allowance>
+         <allower> Caller </allower>
+         <spenders> ... (Spender |-> OldAllowance => Spender |-> OldAllowance +Int Value1 -Int Value2) ... </spenders>
+       </allowance>
+       ...
+     </allowances>
+     <kycpassed> ... (Caller |-> true)(Spender |-> true) ... </kycpassed>
+     <frozen> ... (Caller |-> false)(Spender |-> false) ... </frozen>
+  requires TokenOwner =/=Int 0
+    andBool Value1 >=Int 0
+    andBool Value2 >=Int 0
+    andBool (OldAllowance +Int Value1) <=Int MAXVALUE
+    andBool (OldAllowance +Int Value1 -Int Value2) >=Int 0
+    andBool OldAllowance >=Int 0
+
+// decrease and then increase allowance
+rule <k> decreaseAllowance(Spender:Int, Value1:Int, { caller : Caller } )
+         ~>
+         increaseAllowance(Spender:Int, Value2:Int, { caller : Caller } ) => . ...</k>
+     <tokenOwner> TokenOwner </tokenOwner>
+     <allowances>
+      ...
+      <allowance>
+         <allower> Caller </allower>
+         <spenders> ... (Spender |-> OldAllowance => Spender |-> OldAllowance -Int Value1 +Int Value2) ... </spenders>
+       </allowance>
+       ...
+     </allowances>
+     <kycpassed> ... (Caller |-> true)(Spender |-> true) ... </kycpassed>
+     <frozen> ... (Caller |-> false)(Spender |-> false) ... </frozen>
+  requires TokenOwner =/=Int 0
+    andBool Value1 >=Int 0
+    andBool Value2 >=Int 0
+    andBool (OldAllowance -Int Value1) >=Int 0
+    andBool (OldAllowance -Int Value1 +Int Value2) <=Int MAXVALUE
+    andBool OldAllowance >=Int 0
+
 endmodule

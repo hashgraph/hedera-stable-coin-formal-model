@@ -11,6 +11,16 @@ rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
      <frozen> ... (ProposedOwner |-> false) ... </frozen>
   requires Caller =/=Int 0 andBool ProposedOwner =/=Int 0
 
+// propose owner twice
+rule <k> proposeOwner(ProposedOwner1, { caller : Caller } )
+         ~>
+         proposeOwner(ProposedOwner2, { caller : Caller } ) => . ...</k>
+     <tokenOwner> Caller </tokenOwner>
+     <proposedOwner> _ => ProposedOwner2 </proposedOwner>
+     <kycpassed> ... (ProposedOwner1 |-> true)(ProposedOwner2 |-> true) ... </kycpassed>
+     <frozen> ... (ProposedOwner1 |-> false)(ProposedOwner2 |-> false) ... </frozen>
+  requires Caller =/=Int 0 andBool ProposedOwner1 =/=Int 0 andBool ProposedOwner2 =/=Int 0
+
 // non-owner cannot propose a new owner
 rule <k> proposeOwner(ProposedOwner:Int, { caller : Caller } ) => throw ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
