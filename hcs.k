@@ -28,7 +28,6 @@ module HCS-SYNTAX
                 | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                   [strict]
                 | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                 [strict]
                 | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                     [strict]
-                | "initAccount" "(" AExp ")"                                                                            [strict]
                 | "throw"
   syntax BExp ::= Bool
                 | "isFrozen" "(" AExp ")"                                                                               [strict]
@@ -194,27 +193,6 @@ module HCS
   
   rule <k> allowance(_, _) => throw ... </k>
        <tokenOwner> 0 </tokenOwner>
-
-// helpers
-
-  rule <k> initAccount(Account) => . ...</k>
-      <balances> ... (.Map => Account |-> 0) ... </balances>
-      <frozen> ... (.Map => Account |-> false) ... </frozen>
-      <kycpassed> ... (.Map => Account |-> false) ... </kycpassed>
-      <tokenOwner> Owner </tokenOwner>
-       <allowances>
-       Allowances => 
-         Allowances
-         <allowance>
-           <allower> Account </allower>
-           <spenders> (0 |-> 0) </spenders>
-         </allowance>
-      </allowances>
-    requires Owner =/=Int 0
-
-    // for completness
-    rule <k> initAccount(_) => throw ...</k>
-      <tokenOwner> 0 </tokenOwner>
 
 // mintable
 
