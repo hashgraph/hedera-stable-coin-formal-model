@@ -16,7 +16,7 @@ To run, we recommend the docker version of the K-framework. Then to run the
 commands in the `k` framework, you can do the following.
 
 1. Checkout this repo somewhere.
-1. Run `docker run -it -v /your-path-to-this-repo/hedera-stablecoin:/root/hcs runtimeverificationinc/kframework-k:ubuntu-bionic-71d191f`
+1. Run `docker run -it -v /your-path-to-this-repo/hedera-stablecoin:/root/hcs runtimeverificationinc/kframework-k:ubuntu-bionic-bbc70cb`
 1. `cd root/hcs`
 1. `make` (to build and prove all the specifications)
 
