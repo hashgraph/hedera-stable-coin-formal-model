@@ -1,7 +1,7 @@
 Hedera Stablecoin - Formal Model
 =================================================
 
-This formal specification of Hedera Stablecoin has been developed by Jan Gorzny, Kacper Bak, Ed Zulkoski, and Don Ho from the Quantstamp Team (https://quantstamp.com/)
+This formal specification of Hedera Stablecoin has been developed by Jan Gorzny, Kacper Bak, Ed Zulkoski, and Don Ho from the Quantstamp Team (https://quantstamp.com/).
 
 ## Introduction
 
