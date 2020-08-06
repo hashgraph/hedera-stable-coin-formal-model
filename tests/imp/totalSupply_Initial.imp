@@ -1,5 +1,0 @@
-test.preamble();
-
-// Testing totalSupply() on initial configuration
-
-test.totalSupply();

@@ -1,6 +1,0 @@
-test.preamble();
-
-// Testing totalSupply() still works after changing it to zero.
-
-test.makeTotalSupply(0);
-test.totalSupply();
