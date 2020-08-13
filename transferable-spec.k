@@ -3,6 +3,21 @@ requires "hcs.k"
 module TRANSFERABLE-SPEC
 imports HCS
 
+/*
+  Transfer
+  
+  Pre-conditions
+      * Owner != 0x
+      * value >= 0
+      * Balances[From] >= value
+      * CheckTransferAllowed(From)
+      * CheckTransferAllowed(To)
+      * To != From
+
+  Post-conditions
+      * Balances[From]’ = Balances[From] - value
+      * Balances[To]' = Balances[To] + value
+ */
 rule <k> transfer(To, Value, { caller : From } ) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
      <balances> ... (From |-> BalanceFrom => From |-> BalanceFrom -Int Value)
@@ -14,6 +29,26 @@ rule <k> transfer(To, Value, { caller : From } ) => . ...</k>
     andBool Value >=Int 0
     andBool BalanceFrom >=Int Value
 
+/*
+  Transfer followed by another transfer should update the three involved accounts correctly.
+  
+  Pre-conditions
+      * Owner != 0x
+      * value1 >= 0
+      * value2 >= 0
+      * Balances[Acc1] >= value1
+      * Balances[Acc2] + value1 >= value2
+      * CheckTransferAllowed(Acc1)
+      * CheckTransferAllowed(Acc2)
+      * CheckTransferAllowed(Acc3)
+      * Acc2 != Acc1
+      * Acc3 != Acc2
+
+  Post-conditions
+      * Balances[Acc1]’ = Balances[Acc1] - value1
+      * Balances[Acc2]' = Balances[Acc2] + value1 - value2
+      * Balances[Acc3]' = Balances[Acc3] + value2
+ */
 rule <k> transfer(Acc2, Value1, { caller : Acc1 } )
          ~>
          transfer(Acc3, Value2, { caller : Acc2 } ) => . ...</k>
@@ -31,6 +66,23 @@ rule <k> transfer(Acc2, Value1, { caller : Acc1 } )
     andBool BalanceAcc1 >=Int Value1
     andBool BalanceAcc2 +Int Value1 >=Int Value2
 
+/*
+  Transfer tokens on behalf of the owner
+
+  Pre-conditions
+      * Owner != 0x
+      * value >= 0
+      * Balances[from] >= value
+      * Allowances[from][caller] >= value
+      * CheckTransferAllowed(caller)
+      * CheckTransferAllowed(from)
+      * CheckTransferAllowed(to)
+
+  Post-conditions
+      * Balances[from]’ = Balances[from] - value
+      * Allowances[from][caller]’ = Allowances[from][caller] - value
+      * Balances[to]’ = Balances[to] + value
+ */
 rule <k> transferFrom(From:Int, To:Int, Value:Int, {caller: Caller:Int}) => . ... </k>
        <tokenOwner> TokenOwner </tokenOwner>
        <allowance>

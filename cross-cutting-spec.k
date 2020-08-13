@@ -3,7 +3,24 @@ requires "hcs.k"
 module CROSS-CUTTING-SPEC
 imports HCS
 
-// A mint followed by a burn will result in no changes to the totalSupply (disallowing overflow)
+/*
+  Mint followed by a burn will result in no changes to the totalSupply (disallowing overflow)
+  and balance of supply manager
+
+  Pre-conditions
+      * Owner != 0x // constructor has been called
+      * caller = SupplyManager || caller = Owner
+      * value >= 0
+      * TotalSupply + value <= MAX_INT // prevents overflow
+      * TotalSupply >= Balances[SupplyManager]
+      * Balances[SupplyManager] >= 0
+
+  Post-conditions
+      * TotalSupply’ = TotalSupply // no change in the total supply
+      * Balances[SupplyManager]’ = Balances[SupplyManager] // no change in the balance
+
+  Note that according to the spec, the funds go to SupplyManager even if the caller is Owner
+ */
 rule <k> mint(Value, {caller: Caller})
          ~>
          burn(Value, {caller: Caller}) => . ...</k>
@@ -18,7 +35,24 @@ rule <k> mint(Value, {caller: Caller})
     andBool Balance >=Int 0
     andBool Supply +Int Value <=Int MAXVALUE
  
-// A burn followed by a mint will result in no changes to the totalSupply (disallowing underflow)
+/*
+  Burn followed by a mint will result in no changes to the totalSupply (disallowing underflow)
+  and balance of supply manager
+
+  Pre-conditions
+      * Owner != 0x // constructor has been called
+      * caller = SupplyManager || caller = Owner
+      * value >= 0
+      * TotalSupply + value <= MAX_INT // prevents overflow
+      * TotalSupply >= Balances[SupplyManager]
+      * Balances[SupplyManager] >= 0
+
+  Post-conditions
+      * TotalSupply’ = TotalSupply // no change in the total supply
+      * Balances[SupplyManager]’ = Balances[SupplyManager] // no change in the balance
+
+  Note that according to the spec, the funds go to SupplyManager even if the caller is Owner
+ */
 rule <k> burn(Value, {caller: Caller})
          ~>
          mint(Value, {caller: Caller}) => . ...</k>
@@ -33,7 +67,24 @@ rule <k> burn(Value, {caller: Caller})
     andBool Supply >=Int Balance
     andBool Supply <=Int MAXVALUE
 
-// wipe tokens of a stale supply manager
+/*
+  Wipe tokens of a stale supply manager after freezing their assets.
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = Owner
+      * NewSupplyManager != 0x
+      * CheckTransferAllowed(NewSupplyManager)
+      * OldSupplyManager != Caller
+      * OldSupplyManager != NewSupplyManager
+      * OldSupplyManager != AssetProtectionManager
+
+  Post-conditions
+      * SupplyManager = NewSupplyManager
+      * Frozen[OldSupplyManager]
+      * TotalSupply’ = TotalSupply - Balances[OldSupplyManager]
+      * Balances[OldSupplyManager]’ = 0
+ */
 rule <k> changeSupplyManager(SupplyManager, { caller : Caller } )
          ~>
          freeze(OldSupplyManager, {caller: Caller})
@@ -52,7 +103,20 @@ rule <k> changeSupplyManager(SupplyManager, { caller : Caller } )
     andBool OldSupplyManager =/=Int SupplyManager
     andBool OldSupplyManager =/=Int AssetProtectionManager
 
-// approve and then increase allowance
+/*
+  Approval of an allowance and then subsequent increase should result in an approval of the sum of the allowances.
+
+  Pre-conditions
+      * Owner != 0x
+      * value1 >= 0
+      * value2 >= 0
+      * CheckTransferAllowed(caller)
+      * CheckTransferAllowed(spender)
+      * Allowances[caller][spender] + value1 + value2 <= MAX_INT
+
+  Post-conditions
+      * Allowances[caller][spender] = value1 + value2
+ */
 rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
          ~>
          increaseAllowance(Spender, Value2:Int, { caller : Caller } ) => . ...</k>
@@ -72,7 +136,20 @@ rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
       andBool Value2 >=Int 0
       andBool (Value1 +Int Value2) <=Int MAXVALUE
 
-// approve and then decrease allowance
+/*
+  Approval of an allowance and then subsequent decrease should result in an approval of the difference of the allowances.
+
+  Pre-conditions
+      * Owner != 0x
+      * value1 >= 0
+      * value2 >= 0
+      * CheckTransferAllowed(caller)
+      * CheckTransferAllowed(spender)
+      * value1 - value2 >= 0
+
+  Post-conditions
+      * Allowances[caller][spender] = value1 - value2
+ */
 rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
          ~>
          decreaseAllowance(Spender, Value2:Int, { caller : Caller } ) => . ...</k>
@@ -92,7 +169,24 @@ rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
       andBool Value2 >=Int 0
       andBool (Value1 -Int Value2) >=Int 0
 
-// disallow transfers when an account is frozen
+
+/*
+  Disallow transfers when an account is frozen.
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = AssetProtectionManager || caller = Owner
+      * !isPrivilegedRole(From)
+      * value >= 0
+      * Balances[From] >= value
+      * CheckTransferAllowed(From)
+      * CheckTransferAllowed(To)
+
+  Post-conditions
+      * Frozen[From]
+      * Balances[From]’ = Balances[From]
+      * Balances[To]' = Balances[To]
+ */
 rule <k> freeze(From:Int, { caller : Caller } ) 
          ~>
          transfer(To:Int, Value:Int, { caller : From } ) => throw ...</k>
@@ -111,7 +205,23 @@ rule <k> freeze(From:Int, { caller : Caller } )
       andBool Value >=Int 0
       andBool Balance >=Int Value
 
-// allow transfers when an account is unfrozen
+/*
+  Allow transfers when an account is unfrozen.
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = AssetProtectionManager || caller = Owner
+      * !isPrivilegedRole(From)
+      * value >= 0
+      * Balances[From] >= value
+      * CheckTransferAllowed(From)
+      * CheckTransferAllowed(To)
+
+  Post-conditions
+      * !Frozen[From]
+      * Balances[From]’ = Balances[From] - value
+      * Balances[To]' = Balances[To] + value
+ */
 rule <k> unfreeze(From:Int, {caller: Caller})
          ~>
          transfer(To:Int, Value:Int, { caller : From } ) => . ...</k>

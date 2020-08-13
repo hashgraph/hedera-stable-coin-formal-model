@@ -3,7 +3,18 @@ requires "hcs.k"
 module ROLES-SPEC
   imports HCS
 
-// owner can propose a new owner
+/*
+  Owner can propose a new owner.
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = Owner
+      * addr != 0x
+      * CheckTransferAllowed(addr)
+
+  Post-conditions
+      * ProposedOwner = addr
+*/
 rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
      <tokenOwner> Caller </tokenOwner>
      <proposedOwner> _ => ProposedOwner </proposedOwner>
@@ -11,7 +22,20 @@ rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
      <frozen> ... (ProposedOwner |-> false) ... </frozen>
   requires Caller =/=Int 0 andBool ProposedOwner =/=Int 0
 
-// propose owner twice
+/*
+  Proposing owner twice ignores the first call.
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = Owner
+      * ProposedOwner1 != 0x
+      * ProposedOwner2 != 0x
+      * CheckTransferAllowed(ProposedOwner1)
+      * CheckTransferAllowed(ProposedOwner2)
+
+  Post-conditions
+      * ProposedOwner = ProposedOwner2
+*/
 rule <k> proposeOwner(ProposedOwner1, { caller : Caller } )
          ~>
          proposeOwner(ProposedOwner2, { caller : Caller } ) => . ...</k>
@@ -27,8 +51,20 @@ rule <k> proposeOwner(ProposedOwner:Int, { caller : Caller } ) => throw ...</k>
      <kycpassed> ... (ProposedOwner |-> _) ... </kycpassed>
      <frozen> ... (ProposedOwner |-> _) ... </frozen>
   requires TokenOwner =/=Int Caller
+ 
+/*
+  Proposed owner can claim ownership and the proposed owner is then reset.
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = Owner
+      * addr != 0x
+      * CheckTransferAllowed(addr)
 
-// proposed owner can claim ownership
+  Post-conditions
+      * ProposedOwner = 0
+      * Owner = addr
+*/
 rule <k> proposeOwner(ProposedOwner, { caller : Caller } )
          ~>
          claimOwnership( { caller : ProposedOwner } ) => . ...</k>
@@ -50,8 +86,19 @@ rule <k> proposeOwner(ProposedOwner:Int, { caller : Caller:Int } )
     andBool AnotherCaller =/=Int 0
     andBool ProposedOwner =/=Int 0
     andBool ProposedOwner =/=Int AnotherCaller
- 
-// owner can change supply manager
+
+/*
+  Owner can change supply manager
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = Owner
+      * addr != 0x
+      * CheckTransferAllowed(addr)
+
+  Post-conditions
+      * SupplyManager = addr
+*/
 rule <k> changeSupplyManager(SupplyManager, { caller : Caller } ) => . ...</k>
      <tokenOwner> Caller </tokenOwner>
      <supplyManager> _ => SupplyManager </supplyManager>
@@ -66,7 +113,18 @@ rule <k> changeSupplyManager(SupplyManager:Int, { caller : Caller } ) => throw .
      <frozen> ... (SupplyManager |-> _) ... </frozen>
   requires TokenOwner =/=Int Caller
 
-// owner can change asset protection manager
+/*
+  Owner can change asset protection manager.
+
+  Pre-conditions
+      * Owner != 0x
+      * caller = Owner
+      * addr != 0x
+      * CheckTransferAllowed(addr)
+
+  Post-conditions
+      * AssetProtectionManager = addr
+ */
 rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) =>  . ...</k>
      <tokenOwner> Caller </tokenOwner>
      <assetProtectionManager> _ => AssetProtectionManager </assetProtectionManager>

@@ -3,7 +3,19 @@ requires "hcs.k"
 module COMPLIANT-SPEC
 imports HCS
 
-// compliant - setKycPassed and checkTransferAllowed, which is a happy path
+/*
+  If and account is not frozen (default value) and has KYC set to false, and setKycPassed() is called, then checkTransferAllowed() should return true
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = AssetProtectionManager || caller = Owner
+      * !Frozen[addr]
+      * !KycPassed[addr]
+
+  Post-conditions
+      * KycPassed[addr]
+      * result = true
+ */
 rule <k> setKycPassed(Target:Int, {caller: Caller})
          ~>
          checkTransferAllowed(Target:Int) => true ...</k>
@@ -14,7 +26,21 @@ rule <k> setKycPassed(Target:Int, {caller: Caller})
   requires Owner =/=Int 0
     andBool (Caller ==Int AssetProtectionManager orBool Caller ==Int Owner)
 
-// compliant - setKycPassed, freeze, then checkTransferAllowed, which is a bad path
+/*
+  If and account is not frozen (default value) and has KYC set to false, and setKycPassed() is called and then freeze() is called,
+  then checkTransferAllowed() should return false
+  
+  Pre-conditions
+      * Owner != 0x
+      * caller = AssetProtectionManager || caller = Owner
+      * !Frozen[addr]
+      * !KycPassed[addr]
+
+  Post-conditions
+      * KycPassed[addr]
+      * Frozen[addr]
+      * result = true
+ */
 rule <k> setKycPassed(Target:Int, {caller: Caller})
          ~>
          freeze(Target:Int, {caller: Caller})
@@ -31,7 +57,16 @@ rule <k> setKycPassed(Target:Int, {caller: Caller})
     andBool Target =/=Int SupplyManager
     andBool Target =/=Int AssetProtectionManager
 
-// compliant - `checkTransferAllowed` without first calling `setKycPassed`, which is a bad path
+/*
+  Detect transfer restriction
+  
+  Pre-conditions
+      * Owner != 0x
+      * Frozen[addr] || !KycPassed[addr]
+
+  Post-conditions
+      * result = false
+ */
 rule <k> checkTransferAllowed(Target:Int) => false ...</k>
      <tokenOwner> Owner </tokenOwner>
      <kycpassed>... (Target |-> ValK:Bool) ... </kycpassed>

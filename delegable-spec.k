@@ -3,7 +3,18 @@ requires "hcs.k"
 module DELEGABLE-SPEC
 imports HCS
 
-// increase allowance: caller and spender exist
+/*
+  Approve
+
+  Pre-conditions
+      * Owner != 0x
+      * value >= 0
+      * CheckTransferAllowed(caller)
+      * CheckTransferAllowed(spender)
+
+  Post-conditions
+      * Allowances[caller][spender] = value  
+ */
 rule <k> approveAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
      <allowances>
@@ -19,6 +30,19 @@ rule <k> approveAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ...
   requires TokenOwner =/=Int 0
     andBool Value >=Int 0
 
+/*
+  Allowance approval followed by another allowance approval should ignore the first call.
+
+  Pre-conditions
+      * Owner != 0x
+      * value1 >= 0
+      * value2 >= 0
+      * CheckTransferAllowed(caller)
+      * CheckTransferAllowed(spender)
+
+  Post-conditions
+      * Allowances[caller][spender] = value2
+ */
 rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
          ~>
          approveAllowance(Spender:Int, Value2:Int, { caller : Caller } ) => . ...</k>
@@ -37,6 +61,15 @@ rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
     andBool Value1 >=Int 0
     andBool Value2 >=Int 0
 
+/*
+  Approval fails if one of the pre-conditions is not satisfied
+
+  Pre-conditions
+      * Owner == 0x || value < 0 || !CheckTransferAllowed(caller) || !checkTransferAllowed(spender)
+
+  Post-conditions
+      * throws
+ */
 rule <k> approveAllowance(Spender:Int, Value:Int, { caller : Caller } ) => throw ...</k>
      <allowances>
          ...
