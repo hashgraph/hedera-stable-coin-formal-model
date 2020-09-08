@@ -13,11 +13,12 @@ module HCS-SYNTAX
                 | "totalSupply" "(" ")"                                                                                 [strict]
                 | "owner" "(" ")"                                                                                       [strict]
                 | "supplyManager" "(" ")"                                                                               [strict]
-                | "assetProtectionManager" "(" ")"                                                                      [strict]
+                | "complianceManager" "(" ")"                                                                           [strict]
+                | "enforcementManager" "(" ")"                                                                          [strict]
                 | "proposedOwner" "(" ")"                                                                               [strict]
                 | "balanceOf" "(" AExp ")"                                                                              [strict]
                 | "allowance" "(" AExp "," AExp ")"                                                                     [strict]
-  syntax VExp ::= "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
+  syntax VExp ::= "constructor" "(" AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," AExp "," "{" "caller" ":" AExp "}" ")" [strict]
                 | "approveAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                                [strict]
                 | "increaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                               [strict]
                 | "decreaseAllowance" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                               [strict]
@@ -28,12 +29,13 @@ module HCS-SYNTAX
                 | "proposeOwner" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                             [strict]
                 | "claimOwnership" "(""{" "caller" ":" AExp "}" ")"                                                     [strict]
                 | "changeSupplyManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                      [strict]
-                | "changeAssetProtectionManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"                             [strict]
+                | "changeComplianceManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                  [strict]
+                | "changeEnforcementManager" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                 [strict]
                 | "setKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                             [strict]
                 | "unsetKycPassed" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                           [strict]
                 | "freeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                   [strict]
                 | "unfreeze" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                 [strict]
-                | "wipe" "(" AExp "," "{" "caller" ":" AExp "}" ")"                                                     [strict]
+                | "wipe" "(" AExp "," AExp "," "{" "caller" ":" AExp "}" ")"                                            [strict]
                 | "throw"
   syntax BExp ::= Bool
                 | "isFrozen" "(" AExp ")"                                                                               [strict]
@@ -83,8 +85,10 @@ module HCS
                   <tokenOwner> 0 </tokenOwner>
                   // supplyManager is the address of token supply manager. They can mint and burn tokens.
                   <supplyManager> 0 </supplyManager>
-                  // assetProtectionManager is the address of asset protection manager. They are responsible for KYC and account freezing.
-                  <assetProtectionManager> 0 </assetProtectionManager>
+                  // complianceManager is the address of compliance manager. They are responsible for KYC and account freezing.
+                  <complianceManager> 0 </complianceManager>
+                  // enforcementManager is the address of enforcement manager. They are responsible wiping accounts.
+                  <enforcementManager> 0 </enforcementManager>
                   // proposedOwner is a new owner proposed by the current token contract owner.
                   <proposedOwner> 0 </proposedOwner>
                 </HCS>
@@ -106,7 +110,8 @@ module HCS
         * totalSupply >= 0
         * caller != 0x // the newly created Owner is non-zero
         * supplyManager != 0x
-        * assetProtectionManager != 0x
+        * complianceManager != 0x
+        * enforcementManager != 0x
 
     Post-conditions
         * TokenName = tokenName
@@ -115,18 +120,19 @@ module HCS
         * TotalSupply = totalSupply
         * Owner = caller
         * SupplyManager = supplyManager
-        * AssetProtectionManager = assetProtectionManager
+        * ComplianceManager = complianceManager
+        * EnforcementManager = enforcementManager
         * Balances = { SupplyManager->TotalSupply } // SupplyManager gets the TotalSupply of tokens
         * Allowances = {}
         * Frozen = {} // no account is frozen by default
-        * KycPassed = { Owner->true, SupplyManager->true, AssetProtectionManager->true }
+        * KycPassed = { Owner->true, SupplyManager->true, ComplianceManager->true, EnforcementManager->true }
         * ProposedOwner = 0x
    */
-  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => . ...</k>
-      <balances> Balances:Map => Balances [SupplyManagerArg <- TotalSupplyArg][Caller <- 0][AssetProtectionManagerArg <- 0] </balances>
-      <kycpassed> KycPassed:Map => KycPassed[Caller <- true][SupplyManagerArg <- true][AssetProtectionManagerArg <- true] </kycpassed>
-      <frozen> Frozen:Map => Frozen[Caller <- false][SupplyManagerArg <- false][AssetProtectionManagerArg <- false] </frozen>
-      <allowances> 
+  rule <k> constructor(TokenNameArg, TokenSymbolArg, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, ComplianceManagerArg, EnforcementManagerArg, { caller : Caller } ) => . ...</k>
+      <balances> Balances:Map => Balances [SupplyManagerArg <- TotalSupplyArg][Caller <- 0][ComplianceManagerArg <- 0][EnforcementManagerArg <- 0] </balances>
+      <kycpassed> KycPassed:Map => KycPassed[Caller <- true][SupplyManagerArg <- true][ComplianceManagerArg <- true][EnforcementManagerArg <- true] </kycpassed>
+      <frozen> Frozen:Map => Frozen[Caller <- false][SupplyManagerArg <- false][ComplianceManagerArg <- false][EnforcementManagerArg <- false] </frozen>
+      <allowances>
          (.Bag =>
             <allowance>
               <allower> Caller </allower>
@@ -137,7 +143,11 @@ module HCS
               <spenders> (0 |-> 0) </spenders>
             </allowance>
             <allowance>
-              <allower> AssetProtectionManagerArg </allower>
+              <allower> ComplianceManagerArg </allower>
+              <spenders> (0 |-> 0) </spenders>
+            </allowance>
+            <allowance>
+              <allower> EnforcementManagerArg </allower>
               <spenders> (0 |-> 0) </spenders>
             </allowance>
          )
@@ -148,23 +158,26 @@ module HCS
       <totalSupply> _ => TotalSupplyArg </totalSupply>
       <tokenOwner> 0 => Caller </tokenOwner>
       <supplyManager> _ => SupplyManagerArg </supplyManager>
-      <assetProtectionManager> _ => AssetProtectionManagerArg </assetProtectionManager>
+      <complianceManager> _ => ComplianceManagerArg </complianceManager>
+      <enforcementManager> _ => EnforcementManagerArg </enforcementManager>
       <proposedOwner> 0 </proposedOwner>
     requires TokenDecimalArg >=Int 0
       andBool TotalSupplyArg >=Int 0
       andBool Caller =/=Int 0
       andBool SupplyManagerArg =/=Int 0
-      andBool AssetProtectionManagerArg =/=Int 0
+      andBool ComplianceManagerArg =/=Int 0
+      andBool EnforcementManagerArg =/=Int 0
 
   // constructor throws if it's called more than once or arguments are incorrect
-  rule <k> constructor(_, _, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, AssetProtectionManagerArg, { caller : Caller } ) => throw ...</k>
+  rule <k> constructor(_, _, TokenDecimalArg, TotalSupplyArg, SupplyManagerArg, ComplianceManagerArg, EnforcementManagerArg, { caller : Caller } ) => throw ...</k>
       <tokenOwner> TokenOwner </tokenOwner>
     requires notBool (TokenOwner ==Int 0
       andBool TokenDecimalArg >=Int 0
       andBool TotalSupplyArg >=Int 0
       andBool Caller =/=Int 0
       andBool SupplyManagerArg =/=Int 0
-      andBool AssetProtectionManagerArg =/=Int 0)
+      andBool ComplianceManagerArg =/=Int 0
+      andBool EnforcementManagerArg =/=Int 0)
 
 // getters
 
@@ -229,7 +242,7 @@ module HCS
         * Owner != 0x
 
     Post-conditions
-        * result = TotalSupply  
+        * result = TotalSupply
    */
   rule <k> totalSupply() => Total ...</k>
        <totalSupply> Total </totalSupply>
@@ -294,21 +307,39 @@ module HCS
        <tokenOwner> 0 </tokenOwner>
 
   /*
-    Get asset protection manager
+    Get compliance manager
 
     Pre-conditions
         * Owner != 0x
 
     Post-conditions
-        * result = AssetProtectionManager
+        * result = ComplianceManager
   */
-  rule <k> assetProtectionManager() => AssetProtectionManager ...</k>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+  rule <k> complianceManager() => ComplianceManager ...</k>
+       <complianceManager> ComplianceManager </complianceManager>
        <tokenOwner> TokenOwner </tokenOwner>
     requires TokenOwner =/=Int 0
 
   // throws if there is no owner
-  rule <k> assetProtectionManager() => throw ...</k>
+  rule <k> complianceManager() => throw ...</k>
+       <tokenOwner> 0 </tokenOwner>
+
+  /*
+    Get compliance manager
+
+    Pre-conditions
+        * Owner != 0x
+
+    Post-conditions
+        * result = EnforcementManager
+  */
+  rule <k> enforcementManager() => EnforcementManager ...</k>
+       <enforcementManager> EnforcementManager </enforcementManager>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner =/=Int 0
+
+  // throws if there is no owner
+  rule <k> enforcementManager() => throw ...</k>
        <tokenOwner> 0 </tokenOwner>
 
   /*
@@ -379,7 +410,7 @@ module HCS
        </allowance>
        <tokenOwner> TokenOwner </tokenOwner>
     requires TokenOwner =/=Int 0
-  
+
   // throws if there is no owner
   rule <k> allowance(_, _) => throw ... </k>
        <tokenOwner> 0 </tokenOwner>
@@ -429,7 +460,7 @@ module HCS
 
   /*
     Burn
-    
+
     Pre-conditions
         * Owner != 0x
         * caller = SupplyManager || caller = Owner
@@ -468,7 +499,7 @@ module HCS
 
   /*
     Detect transfer restriction
-    
+
     Pre-conditions
         * Owner != 0x
 
@@ -502,10 +533,10 @@ module HCS
         * CheckTransferAllowed(spender)
 
     Post-conditions
-        * Allowances[caller][spender] = value  
+        * Allowances[caller][spender] = value
    */
   rule <k> approveAllowance(Spender, Value, { caller : Caller } ) => . ...</k>
-       <allowances> 
+       <allowances>
          ...
          <allowance>
            <allower> Caller </allower>
@@ -543,7 +574,7 @@ module HCS
 
   /*
     Transfer
-    
+
     Pre-conditions
         * Owner != 0x
         * value >= 0
@@ -555,8 +586,8 @@ module HCS
         * Balances[caller]’ = Balances[caller] - value
         * Balances[to]' = Balances[to] + value
    */
- 
-  // transfer case: To =/= From, success 
+
+  // transfer case: To =/= From, success
   rule <k> transfer(To, Value, { caller : From } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
        <balances> ... (From |-> BalanceFrom => From |-> BalanceFrom -Int Value)
@@ -568,10 +599,10 @@ module HCS
       andBool Value >=Int 0
       andBool BalanceFrom >=Int Value
 
-  // transfer case: To == From, success 
+  // transfer case: To == From, success
   rule <k> transfer(Account, Value, { caller : Account } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <balances> ... (Account |-> Balance) ... </balances>  
+       <balances> ... (Account |-> Balance) ... </balances>
        <kycpassed> ... (Account |-> true) ... </kycpassed>
        <frozen> ... (Account |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
@@ -580,7 +611,7 @@ module HCS
 
   // throws if pre-conditions are not satisfied
   rule <k> transfer(To, Value, { caller : From } ) => throw ...</k>
-       <balances> ... (From |-> Balance)(To |-> _) ... </balances>  
+       <balances> ... (From |-> Balance)(To |-> _) ... </balances>
        <kycpassed> ... (To |-> ToKyc) (From |-> FromKyc) ... </kycpassed>
        <frozen> ... (To |-> ToFrozen) (From |-> FromFrozen) ... </frozen>
        <tokenOwner> TokenOwner </tokenOwner>
@@ -594,7 +625,7 @@ module HCS
 
   /*
     Transfer tokens on behalf of the owner
-    
+
     Pre-conditions
         * Owner != 0x
         * value >= 0
@@ -635,7 +666,7 @@ module HCS
          // still subtracting from allowance even though no funds actually moved
          <spenders> ... (Caller |-> Allowance => Caller |-> Allowance -Int Value) ... </spenders>
        </allowance>
-       <balances> ... (From |-> Balance) ... </balances>  
+       <balances> ... (From |-> Balance) ... </balances>
        <kycpassed> ... (From |-> true) (Caller |-> true) ... </kycpassed>
        <frozen> ... (From |-> false) (Caller |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
@@ -650,7 +681,7 @@ module HCS
          <allower> From </allower>
          <spenders> ... (Caller |-> Allowance) ... </spenders>
        </allowance>
-       <balances> ... (From |-> Balance) ... </balances>  
+       <balances> ... (From |-> Balance) ... </balances>
        <kycpassed> ... (To |-> ToKyc) (From |-> FromKyc) (Caller |-> CallerKyc) ... </kycpassed>
        <frozen> ... (To |-> ToFrozen) (From |-> FromFrozen) (Caller |-> CallerFrozen) ... </frozen>
     requires TokenOwner ==Int 0
@@ -668,7 +699,7 @@ module HCS
 
   /*
     ProposeOwner
-    
+
     Pre-conditions
         * Owner != 0x
         * caller = Owner
@@ -698,7 +729,7 @@ module HCS
 
   /*
     Claim ownership
-    
+
     Pre-conditions
         * Owner != 0x
         * caller = ProposedOwner
@@ -729,7 +760,7 @@ module HCS
 
   /*
     ChangeSupplyManager
-    
+
     Pre-conditions
         * Owner != 0x
         * caller = Owner
@@ -753,12 +784,12 @@ module HCS
        <tokenOwner> TokenOwner </tokenOwner>
     requires TokenOwner ==Int 0
       orBool SupplyManager ==Int 0
-      orBool Caller =/=Int TokenOwner 
+      orBool Caller =/=Int TokenOwner
       orBool (notBool KycPassed)
       orBool Frozen
 
   /*
-    ChangeAssetProtectionManager
+    ChangeComplianceManager
 
     Pre-conditions
         * Owner != 0x
@@ -767,23 +798,53 @@ module HCS
         * CheckTransferAllowed(addr)
 
     Post-conditions
-        * AssetProtectionManager = addr
+        * ComplianceManager = addr
    */
-  rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => . ...</k>
+  rule <k> changeComplianceManager(ComplianceManager, { caller : Caller } ) => . ...</k>
        <tokenOwner> Caller </tokenOwner>
-       <assetProtectionManager> _ => AssetProtectionManager </assetProtectionManager>
-       <kycpassed> ... (AssetProtectionManager |-> true) ... </kycpassed>
-       <frozen> ... (AssetProtectionManager |-> false) ... </frozen>
-    requires Caller =/=Int 0 andBool AssetProtectionManager =/=Int 0
+       <complianceManager> _ => ComplianceManager </complianceManager>
+       <kycpassed> ... (ComplianceManager |-> true) ... </kycpassed>
+       <frozen> ... (ComplianceManager |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool ComplianceManager =/=Int 0
 
   // throws if pre-conditions are not satisfied
-  rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) => throw ...</k>
-       <kycpassed> ... (AssetProtectionManager |-> KycPassed) ... </kycpassed>
-       <frozen> ... (AssetProtectionManager |-> Frozen) ... </frozen>
+  rule <k> changeComplianceManager(ComplianceManager, { caller : Caller } ) => throw ...</k>
+       <kycpassed> ... (ComplianceManager |-> KycPassed) ... </kycpassed>
+       <frozen> ... (ComplianceManager |-> Frozen) ... </frozen>
        <tokenOwner> TokenOwner </tokenOwner>
     requires TokenOwner ==Int 0
-      orBool AssetProtectionManager ==Int 0
-      orBool Caller =/=Int TokenOwner 
+      orBool ComplianceManager ==Int 0
+      orBool Caller =/=Int TokenOwner
+      orBool (notBool KycPassed)
+      orBool Frozen
+
+  /*
+    ChangeEnforcementManager
+
+    Pre-conditions
+        * Owner != 0x
+        * caller = Owner
+        * addr != 0x
+        * CheckTransferAllowed(addr)
+
+    Post-conditions
+        * EnforcementManager = addr
+   */
+  rule <k> changeEnforcementManager(EnforcementManager, { caller : Caller } ) => . ...</k>
+       <tokenOwner> Caller </tokenOwner>
+       <enforcementManager> _ => EnforcementManager </enforcementManager>
+       <kycpassed> ... (EnforcementManager |-> true) ... </kycpassed>
+       <frozen> ... (EnforcementManager |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool EnforcementManager =/=Int 0
+
+  // throws if pre-conditions are not satisfied
+  rule <k> changeEnforcementManager(EnforcementManager, { caller : Caller } ) => throw ...</k>
+       <kycpassed> ... (EnforcementManager |-> KycPassed) ... </kycpassed>
+       <frozen> ... (EnforcementManager |-> Frozen) ... </frozen>
+       <tokenOwner> TokenOwner </tokenOwner>
+    requires TokenOwner ==Int 0
+      orBool EnforcementManager ==Int 0
+      orBool Caller =/=Int TokenOwner
       orBool (notBool KycPassed)
       orBool Frozen
 
@@ -791,34 +852,34 @@ module HCS
 
   /*
     Set KYC passed
-    
+
     Pre-conditions
         * Owner != 0x
-        * caller = AssetProtectionManager || caller = Owner
+        * caller = ComplianceManager || caller = Owner
 
     Post-conditions
         * KycPassed[addr]
    */
   rule <k> setKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
        <kycpassed> ... (Account |-> _ => Account |-> true) ... </kycpassed>
     requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-  
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
+
   // throws if pre-conditions are not satisfied
   rule <k> setKycPassed(_, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
     requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-  
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
+
   /*
     Unset passed KYC
-    
+
     Pre-conditions
         * Owner != 0x
-        * caller = AssetProtectionManager || caller = Owner
+        * caller = ComplianceManager || caller = Owner
         * !isPrivilegedRole(addr)
 
     Post-conditions
@@ -826,32 +887,36 @@ module HCS
    */
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
        <supplyManager> SupplyManager </supplyManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
        <kycpassed> ... (Account |-> _ => Account |-> false) ... </kycpassed>
     requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
       andBool Account =/=Int TokenOwner
       andBool Account =/=Int SupplyManager
-      andBool Account =/=Int AssetProtectionManager
+      andBool Account =/=Int ComplianceManager
+      andBool Account =/=Int EnforcementManager
 
   // throws if pre-conditions are not satisfied
   rule <k> unsetKycPassed(Account, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
        <supplyManager> SupplyManager </supplyManager>
     requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
       orBool Account ==Int TokenOwner
       orBool Account ==Int SupplyManager
-      orBool Account ==Int AssetProtectionManager
+      orBool Account ==Int ComplianceManager
+      orBool Account ==Int EnforcementManager
 
   /*
     Freeze
-    
+
     Pre-conditions
         * Owner != 0x
-        * caller = AssetProtectionManager || caller = Owner
+        * caller = ComplianceManager || caller = Owner
         * !isPrivilegedRole(addr)
 
     Post-conditions
@@ -859,110 +924,120 @@ module HCS
    */
   rule <k> freeze(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
        <supplyManager> SupplyManager </supplyManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
        <frozen> ... (Account |-> _ => Account |-> true) ... </frozen>
     requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
       andBool Account =/=Int TokenOwner
       andBool Account =/=Int SupplyManager
-      andBool Account =/=Int AssetProtectionManager
+      andBool Account =/=Int ComplianceManager
+      andBool Account =/=Int EnforcementManager
 
   // throws if pre-conditions are not satisfied
   rule <k> freeze(Account, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
        <supplyManager> SupplyManager </supplyManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
     requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
       orBool Account ==Int TokenOwner
       orBool Account ==Int SupplyManager
-      orBool Account ==Int AssetProtectionManager
+      orBool Account ==Int ComplianceManager
+      orBool Account ==Int EnforcementManager
 
   /*
     Unfreeze
-    
+
     Pre-conditions
         * Owner != 0x
-        * caller = AssetProtectionManager || caller = Owner
+        * caller = ComplianceManager || caller = Owner
 
     Post-conditions
         * !Frozen[addr] // upon completion, Frozen[addr] must be false
    */
   rule <k> unfreeze(Account, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
        <frozen> ... (Account |-> _ => Account |-> false) ... </frozen>
     requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
 
   // throws if pre-conditions are not satisfied
   rule <k> unfreeze(_, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
     requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
 
   /*
     Wipe
-    
+
     Pre-conditions
         * Owner != 0x
-        * caller = AssetProtectionManager || caller = Owner
-        * Frozen[addr]
+        * value >= 0
+        * caller = EnforcementManager || caller = Owner
+        * Balances[addr] >= value
 
     Post-conditions
-        * TotalSupply’ = TotalSupply - Balances[addr] // total supply decreased
-        * Balances[addr]’ = 0 // balance “updated” to 0
+        * TotalSupply’ = TotalSupply - value // total supply decreased
+        * Balances[addr]’ = Balances[addr] - value // balance “updated”
    */
-  rule <k> wipe(Account, { caller : Caller } ) => . ...</k>
+  rule <k> wipe(Account, Value, { caller : Caller } ) => . ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (Account |-> true) ... </frozen>
-       <balances> ... (Account |-> Bal => Account |-> 0) ... </balances>
-       <totalSupply> Supply => Supply -Int Bal </totalSupply>
+       <enforcementManager> EnforcementManager </enforcementManager>
+       <balances> ... (Account |-> Bal => Account |-> Bal -Int Value) ... </balances>
+       <totalSupply> Supply => Supply -Int Value </totalSupply>
     requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool Value >=Int 0
+      andBool Bal >=Int Value
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int EnforcementManager)
 
   // throws if pre-conditions are not satisfied
-  rule <k> wipe(Account, { caller : Caller } ) => throw ...</k>
+  rule <k> wipe(Account, Value, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-       <frozen> ... (Account |-> IsFrozen) ... </frozen>
-       <balances> ... (Account |-> _) ... </balances>
+       <enforcementManager> EnforcementManager </enforcementManager>
+       <balances> ... (Account |-> Bal) ... </balances>
     requires TokenOwner ==Int 0
-      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-      orBool (notBool IsFrozen)
+      orBool Value <Int 0
+      orBool Bal <Int Value
+      orBool (Caller =/=Int TokenOwner andBool Caller =/=Int EnforcementManager)
 
   /*
     Is privileged role
-    
+
     Pre-conditions
         * Owner != 0x
 
     Post-conditions
-        * result = (addr = Owner || addr = AssetProtectionManager || addr = SupplyManager)
+        * result = (addr = Owner || addr = ComplianceManager || addr = SupplyManager || addr = EnforcementManager)
    */
   rule <k> isPrivilegedRole(Account) => true ...</k>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
     requires Account ==Int Owner
       orBool Account ==Int SupplyManager
-      orBool Account ==Int AssetProtectionManager
+      orBool Account ==Int ComplianceManager
+      orBool Account ==Int EnforcementManager
 
   // false if pre-conditions are not satisfied
   rule <k> isPrivilegedRole(Account) => false ...</k>
        <tokenOwner> Owner </tokenOwner>
        <supplyManager> SupplyManager </supplyManager>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
     requires Account =/=Int Owner
       andBool Account =/=Int SupplyManager
-      andBool Account =/=Int AssetProtectionManager
+      andBool Account =/=Int ComplianceManager
+      andBool Account =/=Int EnforcementManager
 
   /*
     Increase allowance
-    
+
     Pre-conditions
         * Owner != 0x
         * value >= 0
@@ -1014,7 +1089,7 @@ module HCS
 
   /*
     Decrease allowance
-    
+
     Pre-conditions
         * Owner != 0x
         * value >= 0
@@ -1041,7 +1116,7 @@ module HCS
       andBool Value >=Int 0
       andBool (OldAllowance -Int Value) >=Int 0
       andBool OldAllowance >=Int 0
- 
+
   // throws if pre-conditions are not satisfied
   rule <k> decreaseAllowance(Spender, Value, { caller : Caller } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>

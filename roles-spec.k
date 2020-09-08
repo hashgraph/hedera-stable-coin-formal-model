@@ -5,7 +5,7 @@ module ROLES-SPEC
 
 /*
   Owner can propose a new owner.
-  
+
   Pre-conditions
       * Owner != 0x
       * caller = Owner
@@ -24,7 +24,7 @@ rule <k> proposeOwner(ProposedOwner, { caller : Caller } ) => . ...</k>
 
 /*
   Proposing owner twice ignores the first call.
-  
+
   Pre-conditions
       * Owner != 0x
       * caller = Owner
@@ -51,10 +51,10 @@ rule <k> proposeOwner(ProposedOwner:Int, { caller : Caller } ) => throw ...</k>
      <kycpassed> ... (ProposedOwner |-> _) ... </kycpassed>
      <frozen> ... (ProposedOwner |-> _) ... </frozen>
   requires TokenOwner =/=Int Caller
- 
+
 /*
   Proposed owner can claim ownership and the proposed owner is then reset.
-  
+
   Pre-conditions
       * Owner != 0x
       * caller = Owner
@@ -89,7 +89,7 @@ rule <k> proposeOwner(ProposedOwner:Int, { caller : Caller:Int } )
 
 /*
   Owner can change supply manager
-  
+
   Pre-conditions
       * Owner != 0x
       * caller = Owner
@@ -114,7 +114,7 @@ rule <k> changeSupplyManager(SupplyManager:Int, { caller : Caller } ) => throw .
   requires TokenOwner =/=Int Caller
 
 /*
-  Owner can change asset protection manager.
+  Owner can change compliance manager.
 
   Pre-conditions
       * Owner != 0x
@@ -123,20 +123,46 @@ rule <k> changeSupplyManager(SupplyManager:Int, { caller : Caller } ) => throw .
       * CheckTransferAllowed(addr)
 
   Post-conditions
-      * AssetProtectionManager = addr
+      * ComplianceManager = addr
  */
-rule <k> changeAssetProtectionManager(AssetProtectionManager, { caller : Caller } ) =>  . ...</k>
+rule <k> changeComplianceManager(ComplianceManager, { caller : Caller } ) =>  . ...</k>
      <tokenOwner> Caller </tokenOwner>
-     <assetProtectionManager> _ => AssetProtectionManager </assetProtectionManager>
-     <kycpassed> ... (AssetProtectionManager |-> true) ... </kycpassed>
-     <frozen> ... (AssetProtectionManager |-> false) ... </frozen>
-  requires Caller =/=Int 0 andBool AssetProtectionManager =/=Int 0
+     <complianceManager> _ => ComplianceManager </complianceManager>
+     <kycpassed> ... (ComplianceManager |-> true) ... </kycpassed>
+     <frozen> ... (ComplianceManager |-> false) ... </frozen>
+  requires Caller =/=Int 0 andBool ComplianceManager =/=Int 0
 
-// non-owner cannot change asset protection manager
-rule <k> changeAssetProtectionManager(AssetProtectionManager:Int, { caller : Caller } ) => throw ...</k>
+// non-owner cannot change compliance manager
+rule <k> changeComplianceManager(ComplianceManager:Int, { caller : Caller } ) => throw ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <kycpassed> ... (AssetProtectionManager |-> _) ... </kycpassed>
-     <frozen> ... (AssetProtectionManager |-> _) ... </frozen>
+     <kycpassed> ... (ComplianceManager |-> _) ... </kycpassed>
+     <frozen> ... (ComplianceManager |-> _) ... </frozen>
   requires TokenOwner =/=Int Caller
+
+  /*
+    Owner can change enforcement manager.
+
+    Pre-conditions
+        * Owner != 0x
+        * caller = Owner
+        * addr != 0x
+        * CheckTransferAllowed(addr)
+
+    Post-conditions
+        * EnforcementManager = addr
+   */
+  rule <k> changeEnforcementManager(EnforcementManager, { caller : Caller } ) =>  . ...</k>
+       <tokenOwner> Caller </tokenOwner>
+       <enforcementManager> _ => EnforcementManager </enforcementManager>
+       <kycpassed> ... (EnforcementManager |-> true) ... </kycpassed>
+       <frozen> ... (EnforcementManager |-> false) ... </frozen>
+    requires Caller =/=Int 0 andBool EnforcementManager =/=Int 0
+
+  // non-owner cannot change enforcement manager
+  rule <k> changeEnforcementManager(EnforcementManager:Int, { caller : Caller } ) => throw ...</k>
+       <tokenOwner> TokenOwner </tokenOwner>
+       <kycpassed> ... (EnforcementManager |-> _) ... </kycpassed>
+       <frozen> ... (EnforcementManager |-> _) ... </frozen>
+    requires TokenOwner =/=Int Caller
 
 endmodule

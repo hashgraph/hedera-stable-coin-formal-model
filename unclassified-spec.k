@@ -5,36 +5,36 @@ imports HCS
 
 /*
   Set KYC passed
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
 
   Post-conditions
       * KycPassed[addr]
  */
 rule <k>setKycPassed(Target:Int, {caller: Caller}) => . ...</k>
      <tokenOwner> Owner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <kycpassed> ... (Target |-> _ => Target |-> true) ... </kycpassed>
   requires Owner =/=Int 0
     andBool Caller =/=Int 0
-    andBool (Caller ==Int AssetProtectionManager orBool Caller ==Int Owner)
+    andBool (Caller ==Int ComplianceManager orBool Caller ==Int Owner)
 
 // throws if pre-conditions are not satisfied
 rule <k> setKycPassed(_:Int, {caller: Caller}) => throw ...</k>
      <tokenOwner> Owner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
   requires Owner =/=Int 0
     andBool Caller =/=Int 0
-    andBool (Caller =/=Int AssetProtectionManager andBool Caller =/=Int Owner)
+    andBool (Caller =/=Int ComplianceManager andBool Caller =/=Int Owner)
 
 /*
   Unset passed KYC
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
       * !isPrivilegedRole(addr)
 
   Post-conditions
@@ -42,32 +42,36 @@ rule <k> setKycPassed(_:Int, {caller: Caller}) => throw ...</k>
  */
 rule <k> unsetKycPassed(Account:Int, {caller: Caller}) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <supplyManager> SupplyManager </supplyManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
      <kycpassed> ... (Account |-> _ => Account |-> false) ... </kycpassed>
   requires TokenOwner =/=Int 0
-    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
     andBool Account =/=Int TokenOwner
     andBool Account =/=Int SupplyManager
-    andBool Account =/=Int AssetProtectionManager
+    andBool Account =/=Int ComplianceManager
+    andBool Account =/=Int EnforcementManager
 
 // throws if pre-conditions are not satisfied
 rule <k> unsetKycPassed(Account:Int, {caller: Caller}) => throw ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
      <supplyManager> SupplyManager </supplyManager>
   requires TokenOwner ==Int 0
-    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
     orBool Account ==Int TokenOwner
     orBool Account ==Int SupplyManager
-    orBool Account ==Int AssetProtectionManager
+    orBool Account ==Int ComplianceManager
+    orBool Account ==Int EnforcementManager
 
 /*
   Freeze
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
       * !isPrivilegedRole(addr)
 
   Post-conditions
@@ -75,56 +79,60 @@ rule <k> unsetKycPassed(Account:Int, {caller: Caller}) => throw ...</k>
  */
 rule <k> freeze(Account:Int, {caller: Caller}) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <supplyManager> SupplyManager </supplyManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
      <frozen> ... (Account |-> _ => Account |-> true) ... </frozen>
   requires TokenOwner =/=Int 0
-    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
     andBool Account =/=Int TokenOwner
     andBool Account =/=Int SupplyManager
-    andBool Account =/=Int AssetProtectionManager
+    andBool Account =/=Int ComplianceManager
+    andBool Account =/=Int EnforcementManager
 
 // throws if pre-conditions are not satisfied
 rule <k> freeze(Account:Int, { caller : Caller } ) => throw ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
      <supplyManager> SupplyManager </supplyManager>
   requires TokenOwner ==Int 0
-    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
     orBool Account ==Int TokenOwner
     orBool Account ==Int SupplyManager
-    orBool Account ==Int AssetProtectionManager
+    orBool Account ==Int ComplianceManager
+    orBool Account ==Int EnforcementManager
 
 /*
   Unfreeze
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
 
   Post-conditions
       * !Frozen[addr] // upon completion, Frozen[addr] must be false
  */
 rule <k> unfreeze(Account:Int, {caller: Caller}) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <frozen> ... (Account |-> true => Account |-> false) ... </frozen>
   requires TokenOwner =/=Int 0
-    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
 
 // throws if pre-conditions are not satisfied
 rule <k> unfreeze(_:Int, {caller: Caller}) => throw ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
   requires TokenOwner ==Int 0
-    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
+    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int ComplianceManager)
 
 /*
   Freeze followed by unfreeze followed by freeze should leave the account frozen.
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
       * !isPrivilegedRole(addr)
 
   Post-conditions
@@ -136,59 +144,57 @@ rule <k> freeze(Account:Int, {caller: Caller})
          ~>
          freeze(Account:Int, {caller: Caller}) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <supplyManager> SupplyManager </supplyManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
      <frozen> ... (Account |-> _ => Account |-> true) ... </frozen>
   requires TokenOwner =/=Int 0
-    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
     andBool Account =/=Int TokenOwner
     andBool Account =/=Int SupplyManager
-    andBool Account =/=Int AssetProtectionManager
+    andBool Account =/=Int ComplianceManager
+    andBool Account =/=Int EnforcementManager
 
 /*
-  Wipe can only be called for a frozen account.
-  
+  Wipe
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
-      * !isPrivilegedRole(addr)
+        * value >= 0
+        * caller = EnforcementManager || caller = Owner
+        * Balances[addr] >= value
 
   Post-conditions
-      * Frozen[addr] // upon completion, Frozen[addr] must be true
-      * TotalSupply’ = TotalSupply - Balances[addr] // total supply decreased
-      * Balances[addr]’ = 0 // balance “updated” to 0  
+      * TotalSupply’ = TotalSupply - value // total supply decreased
+      * Balances[addr]’ = Balances[addr] - value // balance “updated”
  */
-rule <k> freeze(Account:Int, {caller: Caller})
-         ~>
-         wipe(Account, {caller: Caller}) => . ...</k>
+
+rule <k>  wipe(Account:Int, Value:Int, {caller: Caller}) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-     <supplyManager> SupplyManager </supplyManager>
-     <frozen> ... (Account |-> false => Account |-> true) ... </frozen>
-     <balances> ... (Account |-> Bal => Account |-> 0) ... </balances>
-     <totalSupply> Supply => Supply -Int Bal </totalSupply>
+     <enforcementManager> EnforcementManager </enforcementManager>
+     <balances> ... (Account |-> Bal => Account |-> Bal -Int Value) ... </balances>
+     <totalSupply> Supply => Supply -Int Value </totalSupply>
   requires TokenOwner =/=Int 0
-    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
-    andBool Account =/=Int TokenOwner
-    andBool Account =/=Int SupplyManager
-    andBool Account =/=Int AssetProtectionManager
+    andBool Value >=Int 0
+    andBool Bal >=Int Value
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int EnforcementManager)
 
 // throws if pre-conditions are not satisfied
-rule <k> wipe(Account:Int, {caller: Caller}) => throw ...</k>
+rule <k> wipe(Account:Int, Value:Int, {caller: Caller}) => throw ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-     <frozen> ... (Account |-> IsFrozen) ... </frozen>
-     <balances> ... (Account |-> _) ... </balances>
+     <enforcementManager> EnforcementManager </enforcementManager>
+     <balances> ... (Account |-> Bal) ... </balances>
   requires TokenOwner ==Int 0
-    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int AssetProtectionManager)
-    orBool (notBool IsFrozen)
+    orBool Value <Int 0
+    orBool Bal <Int Value
+    orBool (Caller =/=Int TokenOwner andBool Caller =/=Int EnforcementManager)
 
 /*
   Is privileged role
-  
+
   Pre-conditions
       * Owner != 0x
-      * addr = Owner || addr = AssetProtectionManager || addr = SupplyManager
+      * addr = Owner || addr = ComplianceManager || addr = SupplyManager || addr = EnforcementManager
 
   Post-conditions
       * result = true
@@ -196,31 +202,33 @@ rule <k> wipe(Account:Int, {caller: Caller}) => throw ...</k>
 rule <k> isPrivilegedRole(Account:Int) => true ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
      <supplyManager> SupplyManager </supplyManager>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
-  requires (TokenOwner =/=Int 0 orBool AssetProtectionManager =/=Int 0 orBool SupplyManager =/=Int 0)
-    andBool (Account ==Int TokenOwner orBool Account ==Int AssetProtectionManager
-    orBool Account ==Int SupplyManager)
+     <complianceManager> ComplianceManager </complianceManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
+  requires (TokenOwner =/=Int 0 orBool ComplianceManager =/=Int 0 orBool SupplyManager =/=Int 0 orBool EnforcementManager =/=Int 0)
+    andBool (Account ==Int TokenOwner orBool Account ==Int ComplianceManager
+    orBool Account ==Int SupplyManager orBool Account ==Int EnforcementManager)
 
 /*
   Is privileged role
-  
+
   Pre-conditions
       * Owner != 0x
-      * addr = !(Owner || addr = AssetProtectionManager || addr = SupplyManager)
+      * addr = !(Owner || addr = ComplianceManager || addr = SupplyManager || addr = EnforcementManager)
 
   Post-conditions
       * result = false
  */
 rule <k> isPrivilegedRole(Account:Int) => false ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <supplyManager> SupplyManager </supplyManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
   requires notBool(Account ==Int TokenOwner
-    orBool Account ==Int AssetProtectionManager orBool Account ==Int SupplyManager)
+    orBool Account ==Int ComplianceManager orBool Account ==Int SupplyManager orBool Account ==Int EnforcementManager)
 
 /*
   Increase allowance
-  
+
   Pre-conditions
       * Owner != 0x
       * value >= 0
@@ -250,7 +258,7 @@ rule <k> increaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ..
 
 /*
   Increase the allowance twice should result in a sum of the increases
-  
+
   Pre-conditions
       * Owner != 0x
       * value1 >= 0
@@ -306,7 +314,7 @@ rule <k> increaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => thro
 
 /*
   Decrease allowance
-  
+
   Pre-conditions
       * Owner != 0x
       * value >= 0
@@ -336,7 +344,7 @@ rule <k> decreaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => . ..
 
 /*
   Increase the allowance twice should result in a sum of the decreases
-  
+
   Pre-conditions
       * Owner != 0x
       * value1 >= 0
@@ -392,7 +400,7 @@ rule <k> decreaseAllowance(Spender:Int, Value:Int, { caller : Caller } ) => thro
 
 /*
   Increase of the allowance followed by a decrease should result in an increase by the difference
-  
+
   Pre-conditions
       * Owner != 0x
       * value1 >= 0
@@ -428,7 +436,7 @@ rule <k> increaseAllowance(Spender:Int, Value1:Int, { caller : Caller } )
 
 /*
   Decrease of the allowance followed by an increase shoudl result in a decrease by the difference
-  
+
   Pre-conditions
       * Owner != 0x
       * value1 >= 0

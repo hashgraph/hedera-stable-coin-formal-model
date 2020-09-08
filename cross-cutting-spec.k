@@ -34,7 +34,7 @@ rule <k> mint(Value, {caller: Caller})
     andBool Supply >=Int Balance
     andBool Balance >=Int 0
     andBool Supply +Int Value <=Int MAXVALUE
- 
+
 /*
   Burn followed by a mint will result in no changes to the totalSupply (disallowing underflow)
   and balance of supply manager
@@ -68,8 +68,8 @@ rule <k> burn(Value, {caller: Caller})
     andBool Supply <=Int MAXVALUE
 
 /*
-  Wipe tokens of a stale supply manager after freezing their assets.
-  
+  Wipe tokens of a stale supply manager after freezing their assets (note that freezing is not required).
+
   Pre-conditions
       * Owner != 0x
       * caller = Owner
@@ -77,7 +77,7 @@ rule <k> burn(Value, {caller: Caller})
       * CheckTransferAllowed(NewSupplyManager)
       * OldSupplyManager != Caller
       * OldSupplyManager != NewSupplyManager
-      * OldSupplyManager != AssetProtectionManager
+      * OldSupplyManager != ComplianceManager
 
   Post-conditions
       * SupplyManager = NewSupplyManager
@@ -89,19 +89,24 @@ rule <k> changeSupplyManager(SupplyManager, { caller : Caller } )
          ~>
          freeze(OldSupplyManager, {caller: Caller})
          ~>
-         wipe(OldSupplyManager, {caller: Caller}) => . ...</k>
+         wipe(OldSupplyManager, Value, {caller: Caller}) => . ...</k>
      <tokenOwner> Caller </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
+     <enforcementManager> EnforcementManager </enforcementManager>
      <supplyManager> OldSupplyManager => SupplyManager </supplyManager>
-     <balances> ... (OldSupplyManager |-> Bal => OldSupplyManager |-> 0) ... </balances>
+     <balances> ... (OldSupplyManager |-> Bal => OldSupplyManager |-> Bal -Int Value) ... </balances>
      <kycpassed> ... (SupplyManager |-> true) ... </kycpassed>
      <frozen> ... (SupplyManager |-> false)(OldSupplyManager |-> false => OldSupplyManager |-> true) ... </frozen>
-     <totalSupply> Supply => Supply -Int Bal </totalSupply>
+     <totalSupply> Supply => Supply -Int Value </totalSupply>
   requires Caller =/=Int 0
+    andBool Value >=Int 0
+    andBool Bal >=Int Value
     andBool SupplyManager =/=Int 0
     andBool OldSupplyManager =/=Int Caller
     andBool OldSupplyManager =/=Int SupplyManager
-    andBool OldSupplyManager =/=Int AssetProtectionManager
+    andBool OldSupplyManager =/=Int ComplianceManager
+    andBool OldSupplyManager =/=Int EnforcementManager
+
 
 /*
   Approval of an allowance and then subsequent increase should result in an approval of the sum of the allowances.
@@ -120,7 +125,7 @@ rule <k> changeSupplyManager(SupplyManager, { caller : Caller } )
 rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
          ~>
          increaseAllowance(Spender, Value2:Int, { caller : Caller } ) => . ...</k>
-       <allowances> 
+       <allowances>
          ...
          <allowance>
            <allower> Caller </allower>
@@ -153,7 +158,7 @@ rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
 rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
          ~>
          decreaseAllowance(Spender, Value2:Int, { caller : Caller } ) => . ...</k>
-       <allowances> 
+       <allowances>
          ...
          <allowance>
            <allower> Caller </allower>
@@ -172,10 +177,10 @@ rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
 
 /*
   Disallow transfers when an account is frozen.
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
       * !isPrivilegedRole(From)
       * value >= 0
       * Balances[From] >= value
@@ -187,30 +192,32 @@ rule <k> approveAllowance(Spender:Int, Value1:Int, { caller : Caller } )
       * Balances[From]’ = Balances[From]
       * Balances[To]' = Balances[To]
  */
-rule <k> freeze(From:Int, { caller : Caller } ) 
+rule <k> freeze(From:Int, { caller : Caller } )
          ~>
          transfer(To:Int, Value:Int, { caller : From } ) => throw ...</k>
        <tokenOwner> TokenOwner </tokenOwner>
-       <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+       <complianceManager> ComplianceManager </complianceManager>
        <supplyManager> SupplyManager </supplyManager>
+       <enforcementManager> EnforcementManager </enforcementManager>
        <frozen> ... (To |-> false)(From |-> _ => From |-> true) ... </frozen>
        <balances> ... (From |-> Balance)(To |-> _) ... </balances>
        <kycpassed> ... (To |-> true)(From |-> true) ... </kycpassed>
     requires TokenOwner =/=Int 0
-      andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+      andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
       andBool From =/=Int TokenOwner
       andBool From =/=Int SupplyManager
-      andBool From =/=Int AssetProtectionManager
+      andBool From =/=Int ComplianceManager
+      andBool From =/=Int EnforcementManager
       andBool To =/=Int From
       andBool Value >=Int 0
       andBool Balance >=Int Value
 
 /*
   Allow transfers when an account is unfrozen.
-  
+
   Pre-conditions
       * Owner != 0x
-      * caller = AssetProtectionManager || caller = Owner
+      * caller = ComplianceManager || caller = Owner
       * !isPrivilegedRole(From)
       * value >= 0
       * Balances[From] >= value
@@ -226,13 +233,13 @@ rule <k> unfreeze(From:Int, {caller: Caller})
          ~>
          transfer(To:Int, Value:Int, { caller : From } ) => . ...</k>
      <tokenOwner> TokenOwner </tokenOwner>
-     <assetProtectionManager> AssetProtectionManager </assetProtectionManager>
+     <complianceManager> ComplianceManager </complianceManager>
      <kycpassed> ... (To |-> true) (From |-> true) ... </kycpassed>
      <frozen> ... (To |-> false) (From |-> _ => From |-> false) ... </frozen>
      <balances> ... (From |-> BalanceFrom => From |-> BalanceFrom -Int Value)
                     (To |-> BalanceTo => To |-> BalanceTo +Int Value) ... </balances>
   requires TokenOwner =/=Int 0
-    andBool (Caller ==Int TokenOwner orBool Caller ==Int AssetProtectionManager)
+    andBool (Caller ==Int TokenOwner orBool Caller ==Int ComplianceManager)
     andBool To =/=Int From
     andBool Value >=Int 0
     andBool BalanceFrom >=Int Value
