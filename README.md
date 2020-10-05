@@ -27,7 +27,7 @@ Alternatively, you can build the main module:
 and prove a single specification:
 `kprove compliant-spec.k` (or any other file ending in `-spec.k`)
 
-Proving a specification shold output `#True` (and maybe some warnings).
+Proving a specification should output `#True` (and maybe some warnings).
 
 ## Acknowledgments
 
